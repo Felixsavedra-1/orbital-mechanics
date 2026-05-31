@@ -4,11 +4,9 @@ const Jimp = require('jimp');
 const fs = require('fs');
 const path = require('path');
 
-const WIDTH = 800;
-const HEIGHT = 450;
-const FRAME_DELAY = 100;        // ms between frames
-const VIEWS = ['moon', 'solar', 'mars'];
-const FRAMES_PER_VIEW = 20;     // ~2s per tab (incl. the camera ease-in)
+const WIDTH = 1000;
+const HEIGHT = 560;
+const FRAME_DELAY = 60;         // ms between frames (~16.7 fps; quantizes to 6 cs in the GIF)
 
 async function main() {
   console.log('Launching browser...');
@@ -17,8 +15,8 @@ async function main() {
   });
 
   const page = await browser.newPage();
-  // deviceScaleFactor: 2 makes the dashboard render at 1600×900 (via its
-  // setPixelRatio cap) so we can supersample-downscale to 800×450 for crisp,
+  // deviceScaleFactor: 2 renders the dashboard at 2× (the app caps setPixelRatio
+  // at 2, solar_system.html:427); Jimp downscales to WIDTH×HEIGHT below for crisp,
   // less-banded frames.
   await page.setViewport({ width: WIDTH, height: HEIGHT, deviceScaleFactor: 2 });
 
@@ -35,33 +33,52 @@ async function main() {
     slider.dispatchEvent(new Event('input'));
   });
 
-  // Cycle the three tabs, capturing each view (the first frames of each
-  // segment naturally include the dashboard's ~0.55s camera ease-in).
-  const totalFrames = VIEWS.length * FRAMES_PER_VIEW;
-  console.log(`Capturing ${totalFrames} frames across ${VIEWS.length} views...`);
   const frames = [];
-  for (const view of VIEWS) {
-    await page.evaluate(v => document.querySelector(`.tab[data-view="${v}"]`).click(), view);
-    for (let i = 0; i < FRAMES_PER_VIEW; i++) {
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const switchTo = view => page.evaluate(v => document.querySelector(`.tab[data-view="${v}"]`).click(), view);
+
+  // Capture `count` frames from the current scene (the first frames after a tab
+  // switch / focus naturally include the dashboard's ~0.55s camera ease-in).
+  async function grab(label, count) {
+    for (let i = 0; i < count; i++) {
       frames.push(await page.screenshot({ type: 'png' }));
-      process.stdout.write(`\r  ${view}: frame ${i + 1}/${FRAMES_PER_VIEW}`);
-      await new Promise(r => setTimeout(r, FRAME_DELAY));
+      process.stdout.write(`\r  ${label}: frame ${i + 1}/${count}   `);
+      await sleep(FRAME_DELAY);
     }
+    console.log();
   }
-  console.log();
+
+  // Moon — Earth / Moon / ISS.
+  await switchTo('moon');
+  await grab('moon', 22);
+
+  // Solar System — the system overview with the BODIES rail, then focus Jupiter
+  // so the data sheet docks beneath the lit picker entry (the headline new UI).
+  await switchTo('solar');
+  await grab('solar (overview)', 14);
+  await page.evaluate(() => views.solar.focusByName('Jupiter'));
+  await sleep(700);   // let the ~0.55s camera ease-in settle before holding
+  // Ease the turntable down so consecutive frames differ less — keeps the
+  // close-up alive while letting the GIF optimizer diff away unchanged pixels.
+  await page.evaluate(() => { controls.autoRotateSpeed = 0.22; });
+  await grab('solar (Jupiter)', 30);
+
+  // Mars — heliocentric Earth → Moon → Mars transfer corridor.
+  await switchTo('mars');
+  await grab('mars', 18);
 
   await browser.close();
 
   console.log('Encoding GIF...');
   const gif = new GifEncoder(WIDTH, HEIGHT, 'neuquant', true);
   gif.setDelay(FRAME_DELAY);
-  gif.setRepeat(0); // loop forever
+  gif.setRepeat(0);
   gif.start();
 
   for (const buf of frames) {
     const img = await Jimp.read(buf);
-    // Downscale the 1600×900 supersampled capture to the 800×450 output —
-    // this is the anti-aliasing win and softens 256-color banding.
+    // Downscale the 2× supersampled capture to WIDTH×HEIGHT — the anti-aliasing
+    // win that also softens 256-color banding.
     img.resize(WIDTH, HEIGHT, Jimp.RESIZE_BICUBIC);
     gif.addFrame(img.bitmap.data);
   }
