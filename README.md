@@ -4,7 +4,7 @@ Physics-based orbital mechanics engine — 8 planets, mission planning, and a li
 
 ![Orbital dashboard — Moon · Solar System · Mars views](preview.gif)
 
-**Skills demonstrated:** numerical integration (RK4), astrodynamics (vis-viva, Hohmann transfers, Tsiolkovsky rocket equation), layered Python architecture, 83-test suite validated against NASA/JPL reference values — zero external dependencies.
+**Skills demonstrated:** astrodynamics (Lambert transfers, porkchop launch-window analysis, vis-viva, Hohmann, Tsiolkovsky), numerical integration (RK4 + adaptive DOP853), perturbation modeling (J2, drag, third-body), layered Python architecture, and a 131-test suite validated against textbook worked examples and **live JPL Horizons** state vectors.
 
 ---
 
@@ -13,21 +13,33 @@ Physics-based orbital mechanics engine — 8 planets, mission planning, and a li
 ```bash
 git clone <repo-url>
 cd "Orbital Simulation"
-python3 main.py
+python3 main.py                          # report engine — pure stdlib, no install
+
+pip install -r requirements.txt          # only for the high-fidelity layer (numpy/scipy)
+python3 main.py --section mission         # real Earth→Mars launch-window analysis
 ```
 
-No dependencies. Python 3 standard library only.
+The report engine is pure Python 3 standard library. The `astrodynamics/` high-fidelity
+layer adds numpy + scipy; it's imported lazily, so the default report needs no install.
 
 ---
 
 ## What It Computes
 
+**Report engine (stdlib):**
 - **Orbital velocity & period** — all 8 planets (JPL J2000.0 semi-major axes)
 - **Earth systems** — ISS and Moon velocity, period, and escape velocity
 - **Hohmann transfer Δv** — LEO→Moon and Earth→Mars maneuvers
 - **Vis-viva velocity** — elliptical orbit speed at any point
 - **Tsiolkovsky mass ratio** — propellant fraction from Δv and Isp
 - **RK4 two-body propagator** — numerical trajectory integration (`propagator.py`)
+
+**High-fidelity astrodynamics layer (`astrodynamics/`, numpy/scipy):**
+- **Full 6-element orbital state** — classical elements ↔ Cartesian, robust Kepler solver
+- **Lambert transfer design** — universal-variable two-point boundary-value solver
+- **Porkchop launch windows** — real departure dates & Δv from approximate JPL ephemerides
+- **Perturbed propagation** — J2 oblateness, atmospheric drag, third-body on an adaptive DOP853 integrator
+- **Validated against JPL Horizons** — ephemeris to ~1300 km (Earth), propagation to ~14 km/week
 
 ---
 
@@ -42,7 +54,15 @@ Or double-click `solar_system.html` in Finder. Requires internet (Three.js via C
 
 The animation uses the same JPL semi-major axes and Kepler velocities as the report engine — no separate dataset.
 
-Three tabbed views share one renderer: **Moon** (Earth–Moon system with the ISS in LEO), **Solar System** (all 8 planets), and **Mars** (heliocentric Earth → Moon → Mars with a Hohmann transfer corridor).
+### Three tabbed views
+
+One renderer, three views — each runs a live mission narrative driven by the speed slider:
+
+- **Moon** `1` — the Earth–Moon system with the ISS in low Earth orbit and a flagged Moon-base site. A four-phase **Starship lunar mission** loops continuously: LEO parking orbit → orbital refueling (a tanker docks via a glowing fuel link) → trans-lunar injection (Δv 3.08 km/s) → lunar arrival (Δv 0.83 km/s).
+- **Solar System** `2` — all 8 planets on their J2000.0 orbits. Click any planet — or use the body picker, top-right — to ease the camera in and dock a data sheet of its physical stats and a one-line blurb.
+- **Mars** `3` — a heliocentric Earth → Mars **Starship Hohmann transfer**. The craft rides the minimum-energy ellipse past the TMI / Cruise / MOI waypoints, while the side panel steps through each phase: Trans-Mars Injection (Δv ~2.95 km/s) → ~259-day coast → Mars Orbit Insertion (Δv ~2.65 km/s; total ~5.59 km/s).
+
+A live caption (bottom) names the current phase; the stepped side panel (right) details it.
 
 | Control | Action |
 |---|---|
@@ -65,26 +85,38 @@ python3 main.py --format csv  --output report.csv
 
 | Flag | Options |
 |---|---|
-| `--section` | `all` · `planets` · `earth` · `concepts` · `mars-base` · `transfers` |
+| `--section` | `all` · `planets` · `earth` · `concepts` · `mars-base` · `transfers` · `mission` |
 | `--format` | `text` · `json` · `csv` |
 | `--output` | file path — omit to print to stdout |
+
+> `mission` runs a live Lambert/porkchop search (needs `numpy`/`scipy`); it is excluded from `all` so the default report stays stdlib-only.
 
 ---
 
 ## Architecture
 
 ```
-calculations.py   orbital velocity, period, escape velocity, vis-viva, Hohmann, Tsiolkovsky
-constants.py      G, AU, SUN_MASS, EARTH_MASS, STANDARD_GRAVITY, ISS_ALTITUDE, …
-data.py           planet and orbit datasets (JPL J2000.0)
-propagator.py     RK4 two-body numerical integrator
-report.py         record builder + text / JSON / CSV renderers
-main.py           CLI entrypoint
-solar_system.html 3D animation (Three.js, CDN)
-tests/            83 tests across 5 modules
+Report engine (pure stdlib)
+  calculations.py   orbital velocity, period, escape velocity, vis-viva, Hohmann, Tsiolkovsky
+  constants.py      G, AU, masses, MU_* parameters, J2, atmosphere model
+  data.py           planet and orbit datasets (JPL J2000.0)
+  propagator.py     RK4 two-body numerical integrator
+  report.py         record builder + text / JSON / CSV renderers
+  main.py           CLI entrypoint
+
+astrodynamics/ (high-fidelity layer, numpy/scipy)
+  state.py          orbital elements ↔ Cartesian state, Kepler solver
+  ephemeris.py      approximate JPL planetary positions + Julian-date utilities
+  lambert.py        universal-variable Lambert solver
+  porkchop.py       launch-window / Δv grid search
+  forces.py         J2, drag, third-body perturbations
+  integrators.py    scipy DOP853 adaptive propagation + conservation diagnostics
+
+solar_system.html   3D animation (Three.js, CDN)
+tests/              131 tests across 9 modules
 ```
 
-**Data flow:** `main.py` → `render_report()` → renderer → `collect_records()` → section builders → `calculations.py`
+**Data flow:** `main.py` → `render_report()` → renderer → `collect_records()` → section builders → `calculations.py` (or, for the `mission` section, the `astrodynamics/` layer)
 
 ---
 
@@ -118,21 +150,29 @@ tests/            83 tests across 5 modules
 
 ## Assumptions
 
-- Circular orbit approximation throughout — eccentricity and perturbations ignored
+**Report engine** (the stdlib sections):
+- Circular orbit approximation — eccentricity and perturbations ignored
 - Moon radius is the semi-major axis; actual range 356,500–406,700 km (e ≈ 0.0549)
 - ISS altitude is a 2024-Q1 mean; decays ~2 km/year without reboosts
 - Earth-Mars midpoint uses perihelion/aphelion heuristic, not a conjunction distance
+
+**High-fidelity layer** (`astrodynamics/`, the `mission` section) — these assumptions are lifted:
+- Full elliptical 6-element state; J2, drag, and third-body perturbations modeled
+- Planetary positions from the JPL approximate-ephemeris table (Standish, valid 1800–2050)
+- Single-revolution Lambert transfers; the exponential atmosphere is coarse (not NRLMSISE)
+- Launch-window Δv is reported as total v∞ (a first-order proxy excluding launch/capture burns)
 
 ---
 
 ## Testing
 
 ```bash
-python3 -m unittest discover -s tests     # 83 tests
+pip install -r requirements.txt           # numpy/scipy for the astrodynamics tests
+python3 -m unittest discover -s tests      # 131 tests
 python3 -m unittest tests.test_calculations
 ```
 
-Covers: physics functions · invalid input rejection · data integrity · JSON schema contract · CSV format · record counts · full pipeline · CLI routing · RK4 propagator.
+Covers: physics functions · invalid input rejection · data integrity · JSON schema contract · CSV format · record counts · full pipeline · CLI routing · RK4 propagator · orbital-element round-trips · Kepler solver · Lambert (Curtis Ex. 5.2) · ephemeris & propagation **vs live JPL Horizons** · J2 nodal regression vs the secular rate · energy/momentum conservation.
 
 ---
 

@@ -1,0 +1,138 @@
+"""Generate mission_arc.js — the real Earth->Mars transfer that drives the dashboard.
+
+The Mars view in solar_system.html used to draw an idealized coplanar Hohmann ellipse.
+This script designs the *actual* 2026 launch opportunity with the high-fidelity layer and
+emits the sampled geometry as a small JS file the dashboard loads via <script src>.
+
+It reuses the exact launch-window grid the `mission` report section uses (imported from
+report.py), so the dashboard and `python3 main.py --section mission` agree on the date:
+
+    1. best_transfer() finds the minimum-energy (departure date x time-of-flight) cell.
+    2. The winning cell is re-solved for geometry: Lambert gives the heliocentric departure
+       velocity, then the analytic two-body propagator samples the transfer arc over the TOF.
+    3. Earth and Mars are sampled on the same time base (so the animation shows the real
+       lead angle and rendezvous), plus one full orbit each for the ring curves.
+
+All positions are heliocentric ecliptic J2000, in AU. The JS side applies the scene's
+radial compression (auToUnits) when mapping to display units.
+
+Run:  python3 generate_mission_arc.py   ->   writes mission_arc.js
+"""
+
+from __future__ import annotations
+
+import json
+
+import numpy as np
+
+from constants import AU, MU_SUN
+from report import (
+    _MISSION_DEP_COUNT,
+    _MISSION_DEP_STEP_DAYS,
+    _MISSION_SEARCH_START,
+    _MISSION_TOF_DAYS,
+)
+from astrodynamics.ephemeris import datetime_to_jd, jd_to_datetime, planet_state
+from astrodynamics.lambert import solve_lambert
+from astrodynamics.porkchop import best_transfer
+from astrodynamics.state import StateVector, elements_to_state, propagate_kepler, state_to_elements
+
+_SECONDS_PER_DAY = 86400.0
+
+# Samples along the transfer arc / planet tracks, and points per full orbit ring.
+_ARC_SAMPLES = 200
+_RING_SAMPLES = 240
+
+# Sidereal periods (days) used only to close the cosmetic orbit rings.
+_PERIOD_DAYS = {"Earth": 365.256, "Mars": 686.980}
+
+_OUTPUT = "mission_arc.js"
+
+
+def _au(vec_m: np.ndarray) -> list[float]:
+    """Heliocentric position in metres -> [x, y, z] in AU, rounded for a compact file."""
+    return [round(float(c) / AU, 6) for c in vec_m]
+
+
+def _solve_best() -> "object":
+    """Run the same porkchop search as report._mission_records() and return the winner."""
+    start_jd = datetime_to_jd(_MISSION_SEARCH_START)
+    departure_jds = [start_jd + _MISSION_DEP_STEP_DAYS * k for k in range(_MISSION_DEP_COUNT)]
+    return best_transfer("Earth", "Mars", departure_jds, _MISSION_TOF_DAYS)
+
+
+def _sample_arc(dep_jd: float, tof_s: float) -> list[list[float]]:
+    """Sample the heliocentric transfer arc (AU) from the post-Lambert departure state."""
+    dep = planet_state("Earth", dep_jd)
+    arr = planet_state("Mars", dep_jd + tof_s / _SECONDS_PER_DAY)
+    v1, _ = solve_lambert(dep.r, arr.r, tof_s, MU_SUN)
+
+    elements = state_to_elements(StateVector(r=dep.r, v=v1), MU_SUN)
+    pts: list[list[float]] = []
+    for k in range(_ARC_SAMPLES):
+        dt = tof_s * k / (_ARC_SAMPLES - 1)
+        pts.append(_au(elements_to_state(propagate_kepler(elements, dt, MU_SUN), MU_SUN).r))
+    return pts
+
+
+def _sample_planet(name: str, dep_jd: float, tof_s: float) -> list[list[float]]:
+    """Sample a planet's heliocentric position (AU) over the transfer time base."""
+    return [
+        _au(planet_state(name, dep_jd + (tof_s * k / (_ARC_SAMPLES - 1)) / _SECONDS_PER_DAY).r)
+        for k in range(_ARC_SAMPLES)
+    ]
+
+
+def _sample_orbit(name: str, dep_jd: float) -> list[list[float]]:
+    """Sample one full orbit of a planet (AU) as a closed ring curve."""
+    period = _PERIOD_DAYS[name]
+    return [
+        _au(planet_state(name, dep_jd + period * k / _RING_SAMPLES).r)
+        for k in range(_RING_SAMPLES)
+    ]
+
+
+def build_mission_arc() -> dict:
+    """Solve the real Earth->Mars 2026 transfer and assemble the dashboard data bundle."""
+    best = _solve_best()
+    tof_s = best.tof_days * _SECONDS_PER_DAY
+
+    return {
+        "meta": {
+            "departure": jd_to_datetime(best.departure_jd).date().isoformat(),
+            "arrival": jd_to_datetime(best.arrival_jd).date().isoformat(),
+            "tof_days": round(best.tof_days, 1),
+            "c3_km2_s2": round(best.c3_km2_s2, 2),
+            "v_inf_depart_km_s": round(best.v_inf_depart_km_s, 2),
+            "v_inf_arrive_km_s": round(best.v_inf_arrive_km_s, 2),
+            "total_v_inf_km_s": round(best.total_v_inf_km_s, 2),
+        },
+        "craft": _sample_arc(best.departure_jd, tof_s),
+        "earth": _sample_planet("Earth", best.departure_jd, tof_s),
+        "mars": _sample_planet("Mars", best.departure_jd, tof_s),
+        "earthOrbit": _sample_orbit("Earth", best.departure_jd),
+        "marsOrbit": _sample_orbit("Mars", best.departure_jd),
+    }
+
+
+def main() -> None:
+    data = build_mission_arc()
+    payload = json.dumps(data, separators=(",", ":"))
+    banner = (
+        "// Generated by generate_mission_arc.py — do not edit by hand.\n"
+        "// Real Earth->Mars 2026 transfer (Lambert + approx. JPL ephemeris).\n"
+        "// Heliocentric ecliptic J2000, positions in AU. Regenerate after changing the\n"
+        "// launch-window grid (report._MISSION_*) or the ephemeris.\n"
+    )
+    with open(_OUTPUT, "w") as fh:
+        fh.write(banner)
+        fh.write(f"const MISSION_ARC = {payload};\n")
+
+    m = data["meta"]
+    print(f"Wrote {_OUTPUT}: depart {m['departure']} -> arrive {m['arrival']} "
+          f"({m['tof_days']:.0f} d, C3 {m['c3_km2_s2']:.2f}, "
+          f"total v_inf {m['total_v_inf_km_s']:.2f} km/s)")
+
+
+if __name__ == "__main__":
+    main()

@@ -20,7 +20,10 @@ VALUE_WIDTH = 14
 REPORT_TITLE = "PLANET ORBITAL SIMULATION & SPACE EXPLORATION GUIDE"
 REPORT_SCHEMA_VERSION = "1.2.0"
 SECTION_ORDER = ["planets", "earth", "concepts", "mars-base", "transfers"]
-VALID_SECTIONS = ["all", *SECTION_ORDER]
+# "mission" runs a live Lambert/porkchop search (needs numpy/scipy), so it is an
+# explicit opt-in section, deliberately excluded from the default "all" aggregation to
+# keep that path pure-stdlib and its record count stable.
+VALID_SECTIONS = ["all", *SECTION_ORDER, "mission"]
 VALID_OUTPUT_FORMATS = ["text", "json", "csv"]
 SECTION_TITLES = {
     "planets": "PLANET ORBITAL VELOCITY & PERIOD DATA",
@@ -28,6 +31,7 @@ SECTION_TITLES = {
     "concepts": "CONCEPT STATIONS",
     "mars-base": "MARS BASE CONCEPT",
     "transfers": "HOHMANN TRANSFER ORBITS",
+    "mission": "EARTH-MARS TRANSFER OPPORTUNITY (LAMBERT/PORKCHOP)",
 }
 
 
@@ -173,6 +177,51 @@ def _transfer_records() -> list[MetricRecord]:
     return records
 
 
+# Earth->Mars launch-window search grid for the "mission" section. The span is fixed
+# (covers the 2026 and 2028 opportunities) so the report is deterministic; 10-day
+# departure resolution over ~3.2 years, flight times 100-360 days.
+_MISSION_SEARCH_START = datetime(2026, 1, 1, tzinfo=timezone.utc)
+_MISSION_DEP_STEP_DAYS = 10.0
+_MISSION_DEP_COUNT = 117
+_MISSION_TOF_DAYS = [100.0 + 10.0 * k for k in range(27)]
+
+
+def _mission_records() -> list[MetricRecord]:
+    """Solve the optimal Earth->Mars transfer over the fixed launch-window grid.
+
+    Uses the high-fidelity astrodynamics layer (approximate JPL ephemerides + a Lambert
+    solver), imported lazily so the default report path stays pure stdlib. This is the
+    real-ephemeris counterpart to the idealized Hohmann figure in the 'transfers' section.
+    """
+    from astrodynamics.ephemeris import datetime_to_jd, jd_to_datetime
+    from astrodynamics.porkchop import best_transfer
+
+    start_jd = datetime_to_jd(_MISSION_SEARCH_START)
+    departure_jds = [start_jd + _MISSION_DEP_STEP_DAYS * k for k in range(_MISSION_DEP_COUNT)]
+    best = best_transfer("Earth", "Mars", departure_jds, _MISSION_TOF_DAYS)
+
+    dep_date = jd_to_datetime(best.departure_jd).date().isoformat()
+    arr_date = jd_to_datetime(best.arrival_jd).date().isoformat()
+    method = "Lambert + approx. JPL ephemeris"
+    return [
+        MetricRecord("mission", "Optimal departure (Earth)", dep_date,
+                     value_num=round(best.departure_jd, 4), unit="JD", note=method),
+        MetricRecord("mission", "Optimal arrival (Mars)", arr_date,
+                     value_num=round(best.arrival_jd, 4), unit="JD", note=method),
+        MetricRecord("mission", "Time of flight", f"{best.tof_days:.0f}",
+                     value_num=round(best.tof_days, 1), unit="days"),
+        MetricRecord("mission", "Departure C3", f"{best.c3_km2_s2:.2f}",
+                     value_num=round(best.c3_km2_s2, 2), unit="km^2/s^2", note="Launch energy"),
+        MetricRecord("mission", "Departure v-infinity", f"{best.v_inf_depart_km_s:.2f}",
+                     value_num=round(best.v_inf_depart_km_s, 3), unit="km/s"),
+        MetricRecord("mission", "Arrival v-infinity", f"{best.v_inf_arrive_km_s:.2f}",
+                     value_num=round(best.v_inf_arrive_km_s, 3), unit="km/s"),
+        MetricRecord("mission", "Total v-infinity", f"{best.total_v_inf_km_s:.2f}",
+                     value_num=round(best.total_v_inf_km_s, 3), unit="km/s",
+                     note="First-order delta-v proxy (departure + arrival)"),
+    ]
+
+
 def _validate_section(section: str) -> None:
     if section not in VALID_SECTIONS:
         valid_sections = ", ".join(VALID_SECTIONS)
@@ -201,6 +250,7 @@ def collect_records(section: str) -> list[MetricRecord]:
         "concepts": _concept_station_records,
         "mars-base": _mars_base_records,
         "transfers": _transfer_records,
+        "mission": _mission_records,
     }
     if section == "all":
         records = []

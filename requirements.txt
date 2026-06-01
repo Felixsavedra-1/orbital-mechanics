@@ -1,0 +1,4 @@
+# Root engine (calculations/propagator/report) is pure stdlib and needs nothing here.
+# These are required only by the astrodynamics/ high-fidelity layer.
+numpy>=1.26
+scipy>=1.11
