@@ -1,30 +1,44 @@
 # Orbital Simulation
 
-Physics-based orbital mechanics engine — 8 planets, mission planning, and a live 3D visualization driven by the same data.
-
 ![Orbital dashboard — Moon · Solar System · Mars views](preview.gif)
 
-**Skills demonstrated:** astrodynamics (Lambert transfers, porkchop launch-window analysis, vis-viva, Hohmann, Tsiolkovsky), numerical integration (RK4 + adaptive DOP853), perturbation modeling (J2, drag, third-body), layered Python architecture, and a 131-test suite validated against textbook worked examples and **live JPL Horizons** state vectors.
+> Physics-based orbital mechanics engine — 8 planets, real mission planning, and a live 3D visualization driven by the same data.
 
----
+<p align="center">
+  <a href="https://github.com/Felixsavedra-1/orbital-mechanics-simulator/actions/workflows/ci.yml"><img src="https://github.com/Felixsavedra-1/orbital-mechanics-simulator/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <img src="https://img.shields.io/badge/python-3.12-blue.svg" alt="Python 3.12">
+  <img src="https://img.shields.io/badge/tests-131%20passing-brightgreen.svg" alt="131 tests passing">
+  <img src="https://img.shields.io/badge/core-zero%20dependencies-success.svg" alt="Zero-dependency core">
+</p>
 
-## Quick Start
+A deterministic astrodynamics engine that computes orbital velocities, periods, transfer Δv, and real Earth→Mars launch windows from authoritative constants. The same JPL data drives an interactive Three.js dashboard, and a 131-test suite validates the physics against textbook worked examples and **live JPL Horizons** state vectors.
+
+## Highlights
+
+- **Validated against live JPL Horizons** — ephemeris accurate to ~1300 km (Earth); perturbed propagation to ~14 km/week.
+- **Real launch-window analysis** — universal-variable Lambert solver + porkchop grid search yield actual Earth→Mars departure dates and Δv.
+- **High-fidelity propagation** — adaptive DOP853 integrator with J2 oblateness, atmospheric drag, and third-body perturbations.
+- **Clean layered architecture** — a zero-dependency stdlib core with numpy/scipy imported lazily only for the high-fidelity layer.
+- **131 tests across 9 modules** — physics, schema contracts, Kepler round-trips, and conservation diagnostics, plus an interactive 3D Three.js dashboard.
+
+**Tech stack:** Python 3.12 · numpy · scipy · Three.js · unittest
+
+## Quickstart
 
 ```bash
-git clone <repo-url>
-cd "Orbital Simulation"
-python3 main.py                          # report engine — pure stdlib, no install
-
-pip install -r requirements.txt          # only for the high-fidelity layer (numpy/scipy)
-python3 main.py --section mission         # real Earth→Mars launch-window analysis
+git clone git@github.com:Felixsavedra-1/orbital-mechanics-simulator.git
+python3 main.py            # report engine — pure stdlib, no install
+open solar_system.html     # interactive 3D dashboard
 ```
 
-The report engine is pure Python 3 standard library. The `astrodynamics/` high-fidelity
-layer adds numpy + scipy; it's imported lazily, so the default report needs no install.
+The report engine is pure Python 3 standard library. The `astrodynamics/` high-fidelity layer adds numpy + scipy (`pip install -r requirements.txt`); it's imported lazily, so the default report needs no install.
 
 ---
 
-## What It Computes
+<details>
+<summary><b>What It Computes</b></summary>
+
+<br>
 
 **Report engine (stdlib):**
 - **Orbital velocity & period** — all 8 planets (JPL J2000.0 semi-major axes)
@@ -41,9 +55,12 @@ layer adds numpy + scipy; it's imported lazily, so the default report needs no i
 - **Perturbed propagation** — J2 oblateness, atmospheric drag, third-body on an adaptive DOP853 integrator
 - **Validated against JPL Horizons** — ephemeris to ~1300 km (Earth), propagation to ~14 km/week
 
----
+</details>
 
-## 3D Visualization
+<details>
+<summary><b>3D Visualization</b></summary>
+
+<br>
 
 ```bash
 open solar_system.html        # macOS
@@ -72,9 +89,12 @@ A live caption (bottom) names the current phase; the stepped side panel (right) 
 | Right-drag | Pan |
 | Speed slider | 0× pause → 6× fast-forward |
 
----
+</details>
 
-## Report Engine
+<details>
+<summary><b>Report Engine (CLI)</b></summary>
+
+<br>
 
 ```bash
 python3 main.py                                          # full report, text
@@ -91,9 +111,12 @@ python3 main.py --format csv  --output report.csv
 
 > `mission` runs a live Lambert/porkchop search (needs `numpy`/`scipy`); it is excluded from `all` so the default report stays stdlib-only.
 
----
+</details>
 
-## Architecture
+<details>
+<summary><b>Architecture</b></summary>
+
+<br>
 
 ```
 Report engine (pure stdlib)
@@ -118,9 +141,12 @@ tests/              131 tests across 9 modules
 
 **Data flow:** `main.py` → `render_report()` → renderer → `collect_records()` → section builders → `calculations.py` (or, for the `mission` section, the `astrodynamics/` layer)
 
----
+</details>
 
-## Physics Reference
+<details>
+<summary><b>Physics Reference</b></summary>
+
+<br>
 
 | Quantity | Formula | Unit |
 |---|---|---|
@@ -133,9 +159,12 @@ tests/              131 tests across 9 modules
 
 *G* = 6.67430 × 10⁻¹¹ m³ kg⁻¹ s⁻² (CODATA 2018) · *g₀* = 9.80665 m/s² (exact, BIPM)
 
----
+</details>
 
-## Data Sources
+<details>
+<summary><b>Data Sources</b></summary>
+
+<br>
 
 | Quantity | Source |
 |---|---|
@@ -146,9 +175,12 @@ tests/              131 tests across 9 modules
 | Planetary semi-major axes | JPL Horizons, epoch J2000.0 |
 | Moon orbital radius | NASA Moon fact sheet (2024) |
 
----
+</details>
 
-## Assumptions
+<details>
+<summary><b>Assumptions</b></summary>
+
+<br>
 
 **Report engine** (the stdlib sections):
 - Circular orbit approximation — eccentricity and perturbations ignored
@@ -162,9 +194,12 @@ tests/              131 tests across 9 modules
 - Single-revolution Lambert transfers; the exponential atmosphere is coarse (not NRLMSISE)
 - Launch-window Δv is reported as total v∞ (a first-order proxy excluding launch/capture burns)
 
----
+</details>
 
-## Testing
+<details>
+<summary><b>Testing</b></summary>
+
+<br>
 
 ```bash
 pip install -r requirements.txt           # numpy/scipy for the astrodynamics tests
@@ -173,6 +208,8 @@ python3 -m unittest tests.test_calculations
 ```
 
 Covers: physics functions · invalid input rejection · data integrity · JSON schema contract · CSV format · record counts · full pipeline · CLI routing · RK4 propagator · orbital-element round-trips · Kepler solver · Lambert (Curtis Ex. 5.2) · ephemeris & propagation **vs live JPL Horizons** · J2 nodal regression vs the secular rate · energy/momentum conservation.
+
+</details>
 
 ---
 
