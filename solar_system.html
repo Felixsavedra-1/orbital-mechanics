@@ -581,15 +581,14 @@ controls.enableDamping = true;
 controls.dampingFactor = 0.06;
 
 // ── Bloom post-processing ────────────────────────────────────────────────────
-//  A threshold-gated UnrealBloom so only genuinely bright pixels — the Sun, its
-//  flares, engine plumes, the brightest stars — bleed light, while planets stay
-//  crisp. The whole scene renders through the composer instead of the renderer.
+//  Threshold-gated UnrealBloom: only bright pixels (Sun, flares, plumes, bright
+//  stars) bleed light while planets stay crisp. Scene renders through the composer.
 const composer = new THREE.EffectComposer(renderer);
 composer.addPass(new THREE.RenderPass(scene, camera));
 const bloomPass = new THREE.UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
   0.55,   // strength — enough to make the Sun & flares glow, not blow them out
-  0.4,    // radius
+  0.4,
   0.82    // luminance threshold — only the brightest pixels bleed; surface detail survives
 );
 composer.addPass(bloomPass);
@@ -625,9 +624,9 @@ let starfield;
       size, vertexColors: true, sizeAttenuation: false, transparent: true,
     }));
   };
-  starfield.add(shell(9000, 16000, 1.0, 0.7));   // dim, numerous
-  starfield.add(shell(3500, 14000, 1.8, 0.9));   // medium
-  starfield.add(shell(600,  12000, 3.0, 1.0));   // sparse, bright
+  starfield.add(shell(9000, 16000, 1.0, 0.7));
+  starfield.add(shell(3500, 14000, 1.8, 0.9));
+  starfield.add(shell(600,  12000, 3.0, 1.0));
 
   // Milky Way band — a dense, flattened belt of faint stars across the sky.
   const mw = 7000, mp = new Float32Array(mw * 3), mc = new Float32Array(mw * 3);
@@ -763,15 +762,10 @@ const bodyNav = {
 bodyNav.build(['Sun', ...EPHEMERIS.planets.map((p) => p.name)]);
 
 // ── Texture loader ──────────────────────────────────────────────────────────
-//  three.js's own planet maps, version-pinned to r128. (The npm/unpkg mirror
-//  omits these binaries; the GitHub-backed jsdelivr CDN serves them with CORS.)
-//  Loads are async — bodies keep their base colour until the image arrives, and
-//  a failed load degrades gracefully to that flat colour instead of going blank.
-const TEX_CDN = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/textures/planets/';
-//  Real equirectangular planet/Sun maps (public-domain planetpixelemporium imagery),
-//  the same source so many three.js demos use — served with CORS from jsdelivr. The
-//  three.js CDN above only ships Earth + Moon, so every other body pulls its photo here.
-const PLANET_CDN = 'https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets@master/images/';
+//  Maps load async — bodies keep their base colour until the image arrives, and a
+//  failed load degrades to that flat colour instead of going blank.
+const TEX_CDN = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/textures/planets/';   // three.js r128 maps (Earth + Moon only), via jsdelivr with CORS
+const PLANET_CDN = 'https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets@master/images/';   // planetpixelemporium maps for every other body
 const _texLoader = new THREE.TextureLoader();
 const _maxAniso  = renderer.capabilities.getMaxAnisotropy();
 function loadTexture(file) {
@@ -1001,11 +995,9 @@ function makeGlow(radius, color, opacity, blending = THREE.NormalBlending) {
   );
 }
 
-// Self-luminous fiery star: a real photosphere map (procedural fallback), a second
-// additively-blended shell rotating the opposite way (so the surface reads as
-// churning plasma), layered additive corona shells (white-hot → orange → red), and
-// a ring of plasma prominences erupting off the limb. With bloom, the bright pixels
-// bleed light so the whole thing glows. userData exposes { core, churn, corona,
+// Self-luminous star: photosphere map (procedural fallback), a counter-rotating
+// additive shell for churning plasma, layered corona shells (white-hot → orange →
+// red), and erupting limb prominences. userData exposes { core, churn, corona,
 // flares } for animateSun().
 function makeSun(radius) {
   const group = new THREE.Group();
@@ -1150,7 +1142,7 @@ function makeEarth(radius, { clouds = true } = {}) {
     shininess: 22, specular: 0x556677,
   });
   group.add(surface);
-  group.add(makeGlow(radius * 1.12, 0x4a90d0, 0.18));   // atmosphere
+  group.add(makeGlow(radius * 1.12, 0x4a90d0, 0.18));
 
   let cloudMesh = null;
   if (clouds) {
@@ -1167,21 +1159,19 @@ function makeEarth(radius, { clouds = true } = {}) {
 // Every starship plume registers here so animate() can flicker them in one pass.
 const PLUMES = [];
 
-// Stylized stainless Starship, fully procedural (no GLTF). Built from a smooth
-// lathe hull (tank section + ogive nose), a black windward heat-shield, fore/aft
-// aero flaps, a Raptor nozzle cluster, and a layered, flickering engine plume.
-// Nose points +Y; the plume (`userData.plume`, a Group) is toggled on only during
-// powered phases. The overall envelope (radius ~0.5, base y≈-1.55, tip y≈4.15)
-// matches the original primitive so all existing flight choreography still lines up.
+// Stylized stainless Starship, fully procedural: lathe hull (tank + ogive nose),
+// black windward heat-shield, fore/aft flaps, Raptor cluster, and a flickering plume
+// (`userData.plume`, on only during powered phases). Nose +Y; the envelope (radius
+// ~0.5, base y≈-1.55, tip y≈4.15) matches the original so choreography still lines up.
 function makeStarship(scale = 1) {
   const group = new THREE.Group();
   const V = THREE.Vector2;
 
   // ── Hull silhouette (radius, height): engine skirt → tank wall → ogive nose ──
   const prof = [
-    new V(0.00, -1.55), new V(0.32, -1.55),   // engine floor
-    new V(0.47, -1.49), new V(0.50, -1.36),   // skirt flares into the tank
-    new V(0.50,  2.55),                        // straight tank wall
+    new V(0.00, -1.55), new V(0.32, -1.55),
+    new V(0.47, -1.49), new V(0.50, -1.36),
+    new V(0.50,  2.55),
   ];
   const NB = 2.55, NL = 1.60;                  // ogive base height / length
   for (let i = 1; i <= 16; i++) {              // rounded ogive nose (quarter-ellipse)
@@ -1216,8 +1206,8 @@ function makeStarship(scale = 1) {
       group.add(f);
     }
   };
-  mkFlaps(0.85, 0.50,  2.15,  0.10);   // forward
-  mkFlaps(1.25, 0.85, -0.95, -0.06);   // aft
+  mkFlaps(0.85, 0.50,  2.15,  0.10);
+  mkFlaps(1.25, 0.85, -0.95, -0.06);
 
   // ── Raptor cluster: nozzles tucked into the skirt (detail for close framing) ──
   const raptorMat = new THREE.MeshPhongMaterial({ color: 0x3a3f47, shininess: 40, specular: 0x565c64 });
@@ -1245,9 +1235,9 @@ function makeStarship(scale = 1) {
     m.userData.baseOpacity = opacity;
     return m;
   };
-  plume.add(cone(0.30, 2.3, 0xeaf5ff, 0.90));   // white-hot core
-  plume.add(cone(0.46, 3.1, 0x8fd2ff, 0.50));   // blue body
-  plume.add(cone(0.66, 4.0, 0x3f86ff, 0.22));   // diffuse halo
+  plume.add(cone(0.30, 2.3, 0xeaf5ff, 0.90));
+  plume.add(cone(0.46, 3.1, 0x8fd2ff, 0.50));
+  plume.add(cone(0.66, 4.0, 0x3f86ff, 0.22));
   const seed = new THREE.Mesh(
     new THREE.SphereGeometry(0.26, 16, 16),
     new THREE.MeshBasicMaterial({ color: 0xfdfdff, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false })

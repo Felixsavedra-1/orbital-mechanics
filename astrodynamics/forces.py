@@ -1,7 +1,6 @@
 """Perturbing accelerations for high-fidelity orbit propagation.
 
-The two-body point-mass term dominates; real orbits drift from the ideal Kepler ellipse
-under perturbations. The ones that matter most for near-Earth work, in rough order:
+Perturbations that matter most for near-Earth work, in rough order:
 
   * J2 oblateness  - Earth's equatorial bulge; drives nodal regression and apsidal
                      rotation. Larger than every other perturbation in LEO.

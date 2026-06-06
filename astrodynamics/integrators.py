@@ -3,8 +3,7 @@
 The root engine's propagator.py uses fixed-step RK4 (pure stdlib, deterministic, fine
 for smooth two-body arcs). This is the high-fidelity path: scipy's DOP853 (8th-order
 Dormand-Prince) with embedded error control and automatic step-size adaptation, driven
-by an arbitrary ForceModel. Error-controlled integration is what lets long, perturbed
-propagations stay trustworthy.
+by an arbitrary ForceModel.
 
 Conservation diagnostics (specific energy and angular momentum) are the standard way to
 audit an integrator: under point-mass-only gravity both are invariants, so their drift

@@ -1,13 +1,10 @@
 """Orbital state core: classical elements <-> Cartesian state, and Kepler propagation.
 
-This is the foundation the rest of the astrodynamics layer stands on. Everything is
-SI (meters, seconds, radians) and expressed in an inertial frame whose +Z axis is the
-reference-plane normal (e.g. the ecliptic pole for heliocentric work, or ECI for Earth).
-
-Conventions follow Curtis, *Orbital Mechanics for Engineering Students* (Algorithms 4.1
-and 4.5) and Vallado, *Fundamentals of Astrodynamics and Applications* (RV2COE/COE2RV).
-Only elliptical orbits (0 <= e < 1) are supported here; hyperbolic transfers are handled
-separately by the Lambert solver.
+SI units (meters, seconds, radians), inertial frame whose +Z axis is the reference-plane
+normal (ecliptic pole for heliocentric work, ECI for Earth). Conventions follow Curtis,
+*Orbital Mechanics for Engineering Students* (Algorithms 4.1 and 4.5) and Vallado,
+*Fundamentals of Astrodynamics and Applications* (RV2COE/COE2RV). Only elliptical orbits
+(0 <= e < 1) are supported; hyperbolic transfers are handled by the Lambert solver.
 """
 
 from __future__ import annotations

@@ -4,7 +4,8 @@
   "private": true,
   "description": "Captures an animated GIF from the Three.js solar system visualization",
   "scripts": {
-    "capture": "node capture_gif.js"
+    "capture": "node capture_gif.js",
+    "capture:missions": "node capture_missions_gif.js"
   },
   "dependencies": {
     "gif-encoder-2": "^1.0.4",

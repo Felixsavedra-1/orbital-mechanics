@@ -1,15 +1,10 @@
 """Lambert's problem: find the transfer orbit connecting two position vectors in a
-given time of flight.
+given time of flight, returning the velocities at both ends (from which departure C3
+and arrival v-infinity follow).
 
-This is the engine behind real interplanetary mission design — given where the
-departure body is now and where the target body will be after a chosen cruise time,
-Lambert returns the heliocentric velocities at both ends, from which departure C3 and
-arrival v-infinity follow.
-
-Implementation: the universal-variable formulation (Bate-Mueller-White; Curtis,
-*Orbital Mechanics for Engineering Students*, Algorithm 5.2), with a Newton iteration
-on the universal variable z. Single-revolution transfers only; multi-rev is a future
-extension. Validated against Curtis Example 5.2.
+Universal-variable formulation (Bate-Mueller-White; Curtis, *Orbital Mechanics for
+Engineering Students*, Algorithm 5.2) with a Newton iteration on the universal variable
+z. Single-revolution transfers only. Validated against Curtis Example 5.2.
 """
 
 from __future__ import annotations

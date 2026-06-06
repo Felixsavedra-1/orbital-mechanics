@@ -7,8 +7,8 @@ https://ssd.jpl.nasa.gov/planets/approx_pos.html
 Each planet has J2000 ecliptic elements plus linear rates per Julian century. We
 advance the elements to the requested epoch, solve Kepler's equation, and reuse
 state.elements_to_state for the Cartesian state. Accuracy over 1800-2050 is sub-arcmin
-for the inner planets — coarse next to SPICE/DE440, but realistic time-varying planet
-positions with no kernel data files, which is what launch-window analysis needs.
+for the inner planets — coarse next to SPICE/DE440 but adequate for launch-window
+analysis without kernel files.
 
 All returned states are heliocentric, in the J2000 ecliptic frame, in SI units.
 """

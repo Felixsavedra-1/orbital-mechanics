@@ -1,20 +1,17 @@
 """Interplanetary transfer / launch-window analysis (porkchop search).
 
-For each (departure date, time-of-flight) pair, we look up where the departure and
-arrival planets actually are (ephemeris.py), solve Lambert's problem for the connecting
-heliocentric transfer, and difference the transfer velocities against the planets'
-velocities to get the hyperbolic excess speeds:
+For each (departure date, time-of-flight) pair, look up the departure/arrival planet
+positions (ephemeris.py), solve Lambert for the connecting heliocentric transfer, and
+difference the transfer velocities against the planet velocities to get the hyperbolic
+excess speeds:
 
     v_inf_depart = |v1 - v_planet_dep|   ->   C3 = v_inf_depart^2   (launch energy)
     v_inf_arrive = |v2 - v_planet_arr|                              (arrival energy)
 
-Scanning a grid of departure dates and flight times produces the classic "porkchop"
-trade space; the minimum-energy cell is a real launch opportunity with a real date and
-a real delta-v budget, in place of the idealized coplanar Hohmann approximation.
-
-The total v_infinity (departure + arrival) is reported as a first-order delta-v proxy;
-a full budget would add launch-vehicle injection from a parking orbit and capture/EDL
-at the target, which depend on vehicle and mission specifics.
+Scanning a grid of dates and flight times gives the classic porkchop trade space; the
+minimum-energy cell is a real launch opportunity. Total v_infinity (departure + arrival)
+is reported as a first-order delta-v proxy — a full budget would add launch injection
+and capture/EDL, which depend on vehicle and mission specifics.
 """
 
 from __future__ import annotations
