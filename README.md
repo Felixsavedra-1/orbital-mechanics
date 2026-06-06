@@ -2,8 +2,6 @@
 
 ![Orbital dashboard — Moon · Solar System · Mars views](preview.gif)
 
-![Mission animations — Starship lunar mission & Earth→Mars Hohmann transfer](preview-missions.gif)
-
 > Physics-based orbital mechanics engine — 8 planets, real mission planning, and a live 3D visualization driven by the same data.
 
 <p align="center">
