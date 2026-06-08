@@ -7,16 +7,24 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
-      --ink:        rgba(255, 255, 255, 0.85);
-      --ink-dim:    rgba(255, 255, 255, 0.55);
-      --ink-faint:  rgba(255, 255, 255, 0.35);
-      --hair:       rgba(255, 255, 255, 0.14);
+      /* foreground — bone-white #ECE5D5 = 236,229,213 */
+      --ink:        rgba(236, 229, 213, 0.88);
+      --ink-dim:    rgba(236, 229, 213, 0.58);
+      --ink-faint:  rgba(236, 229, 213, 0.34);
+      --hair:       rgba(236, 229, 213, 0.14);
+
+      /* accents */
+      --crimson:        #D6203F;   /* bright — live/active text & glyphs */
+      --crimson-deep:   #B3122B;   /* deep  — borders, fills, hovers */
+      --titanium:       #9DA3A8;   /* neutral secondary */
+      --gold:           #C7A06A;   /* positive / completed */
+
       --mono: 'Courier New', ui-monospace, monospace;
     }
     body { background: #000; overflow: hidden; color: var(--ink); }
     canvas { display: block; }
 
-    /* ── Top tab bar ─────────────────────────────────────────── */
+    /* Top tab bar */
     #tabs {
       position: absolute;
       top: 18px; left: 50%;
@@ -46,7 +54,7 @@
     .tab:hover { color: var(--ink-dim); }
     .tab.active {
       color: #06080f;
-      background: rgba(255, 255, 255, 0.88);
+      background: rgba(236, 229, 213, 0.9);
     }
     .tab .key {
       opacity: 0.5;
@@ -55,7 +63,7 @@
     }
     .tab.active .key { opacity: 0.45; }
 
-    /* ── HUD (top-left, per-view) ────────────────────────────── */
+    /* HUD (top-left, per-view) */
     #hud {
       position: absolute;
       top: 18px; left: 18px;
@@ -73,9 +81,9 @@
       letter-spacing: 0.14em;
       margin-bottom: 4px;
     }
-    #hud .accent { color: rgba(120, 200, 255, 0.85); }
+    #hud .accent { color: var(--crimson); }
 
-    /* ── Speed control (bottom-center) ───────────────────────── */
+    /* Speed control (bottom-center) */
     #controls {
       position: absolute;
       bottom: 24px; left: 50%;
@@ -91,7 +99,7 @@
     input[type=range] {
       -webkit-appearance: none;
       width: 200px; height: 2px;
-      background: rgba(255, 255, 255, 0.25);
+      background: rgba(157, 163, 168, 0.4);
       border-radius: 2px;
       outline: none;
       cursor: pointer;
@@ -100,11 +108,11 @@
       -webkit-appearance: none;
       width: 12px; height: 12px;
       border-radius: 50%;
-      background: rgba(255, 255, 255, 0.85);
+      background: rgba(236, 229, 213, 0.9);
       cursor: pointer;
     }
 
-    /* ── Live mission caption (bottom, per-view) ─────────────── */
+    /* Live mission caption (bottom, per-view) */
     #status {
       position: absolute;
       bottom: 58px; left: 50%;
@@ -120,9 +128,9 @@
       z-index: 5;
     }
     #status.on { opacity: 1; }
-    #status .accent { color: rgba(120, 200, 255, 0.85); }
+    #status .accent { color: var(--crimson); }
 
-    /* ── Stepped info panel (right, per-view) ────────────────── */
+    /* Stepped info panel (right, per-view) */
     #info-panel {
       position: absolute;
       top: 50%; right: 22px;
@@ -165,12 +173,12 @@
     }
     #info-panel .step.active {
       color: var(--ink-dim);
-      border-left-color: rgba(120, 200, 255, 0.85);
+      border-left-color: var(--crimson);
     }
-    #info-panel .step.active strong { color: rgba(120, 200, 255, 0.95); }
+    #info-panel .step.active strong { color: var(--crimson); text-shadow: 0 0 10px rgba(214, 32, 63, 0.45); }
     #info-panel .dv { color: var(--ink-dim); }
 
-    /* ── Planet close-up data sheet (reuses #info-panel; also docks in #body-nav) ─ */
+    /* Planet close-up data sheet (reuses #info-panel; also docks in #body-nav) */
     #info-panel .blurb,
     #body-nav .bn-detail .blurb {
       color: var(--ink-dim);
@@ -186,7 +194,7 @@
       padding: 4px 0;
     }
     #info-panel .sheet .row + .row,
-    #body-nav .bn-detail .sheet .row + .row { border-top: 1px solid rgba(255, 255, 255, 0.06); }
+    #body-nav .bn-detail .sheet .row + .row { border-top: 1px solid rgba(236, 229, 213, 0.07); }
     #info-panel .sheet .row .k,
     #body-nav .bn-detail .sheet .row .k {
       color: var(--ink-faint);
@@ -203,7 +211,7 @@
       letter-spacing: 0.08em;
     }
 
-    /* ── Body picker (top-right, Solar System tab) ───────────── */
+    /* Body picker (top-right, Solar System tab) */
     #body-nav {
       position: absolute;
       top: 64px; right: 22px;
@@ -220,7 +228,7 @@
       z-index: 7;
     }
     #body-nav::-webkit-scrollbar { width: 6px; }
-    #body-nav::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 3px; }
+    #body-nav::-webkit-scrollbar-thumb { background: rgba(236, 229, 213, 0.14); border-radius: 3px; }
     #body-nav .bn-list { display: flex; flex-direction: column; gap: 2px; }
     /* Selected-body data sheet, docked beneath the picker as one console box */
     #body-nav .bn-detail {
@@ -256,13 +264,13 @@
       cursor: pointer;
       transition: color 0.2s, background 0.2s;
     }
-    #body-nav .bn-item:hover { color: var(--ink); background: rgba(255, 255, 255, 0.06); }
+    #body-nav .bn-item:hover { color: var(--ink); background: rgba(236, 229, 213, 0.06); }
     #body-nav .bn-item.active {
-      color: rgba(120, 200, 255, 0.95);
-      background: rgba(120, 200, 255, 0.10);
+      color: var(--crimson);
+      background: rgba(214, 32, 63, 0.12);
     }
 
-    /* ── Projected body labels ───────────────────────────────── */
+    /* Projected body labels */
     #label-layer { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
     .plabel {
       position: absolute;
@@ -276,7 +284,7 @@
     }
     .plabel.faint { color: var(--ink-faint); }
 
-    /* ── Mission Plan launch button (Moon & Mars tabs) ───────────── */
+    /* Mission Plan launch button (Moon & Mars tabs) */
     #mission-cta {
       position: absolute;
       bottom: 24px; left: 22px;
@@ -284,24 +292,26 @@
       align-items: center;
       gap: 9px;
       padding: 9px 17px;
-      border: 1px solid rgba(120, 200, 255, 0.45);
+      border: 1px solid rgba(214, 32, 63, 0.5);
       border-radius: 999px;
       background: rgba(8, 10, 18, 0.5);
       backdrop-filter: blur(6px);
-      color: rgba(120, 200, 255, 0.95);
+      color: var(--crimson);
       font: 11px var(--mono);
       letter-spacing: 0.16em;
       text-transform: uppercase;
       cursor: pointer;
       z-index: 8;
-      transition: color 0.2s, background 0.2s, border-color 0.2s;
+      box-shadow: 0 0 14px rgba(214, 32, 63, 0.22);
+      text-shadow: 0 0 8px rgba(214, 32, 63, 0.35);
+      transition: color 0.2s, background 0.2s, border-color 0.2s, box-shadow 0.2s;
     }
-    #mission-cta:hover { background: rgba(120, 200, 255, 0.12); border-color: rgba(120, 200, 255, 0.75); }
+    #mission-cta:hover { background: rgba(214, 32, 63, 0.14); border-color: rgba(214, 32, 63, 0.8); box-shadow: 0 0 18px rgba(214, 32, 63, 0.38); }
     #mission-cta .glyph { font-size: 9px; transform: translateY(0.5px); }
-    #mission-cta.running { color: var(--ink-faint); border-color: var(--hair); cursor: default; }
-    #mission-cta.running:hover { background: rgba(8, 10, 18, 0.5); border-color: var(--hair); }
+    #mission-cta.running { color: var(--ink-faint); border-color: var(--hair); cursor: default; box-shadow: none; text-shadow: none; }
+    #mission-cta.running:hover { background: rgba(8, 10, 18, 0.5); border-color: var(--hair); box-shadow: none; }
 
-    /* ── Mission timeline (bottom, during a plan) — launch-broadcast feel ─ */
+    /* Mission timeline (bottom, during a plan) — launch-broadcast feel */
     #mission-bar {
       position: absolute;
       bottom: 86px; left: 50%;
@@ -328,21 +338,22 @@
       text-transform: uppercase;
       color: var(--ink-faint);
     }
-    #mission-bar .mb-head .phase { color: rgba(120, 200, 255, 0.95); letter-spacing: 0.13em; flex: 1; text-align: center; }
+    #mission-bar .mb-head .phase { color: var(--crimson); letter-spacing: 0.13em; flex: 1; text-align: center; text-shadow: 0 0 9px rgba(214, 32, 63, 0.4); }
     #mission-bar .mb-head .clock { font-variant-numeric: tabular-nums; }
     #mission-bar .mb-track { display: flex; gap: 4px; }
     #mission-bar .seg {
       position: relative; flex: 1; height: 3px;
       border-radius: 2px;
-      background: rgba(255, 255, 255, 0.12);
+      background: rgba(236, 229, 213, 0.12);
       overflow: hidden;
     }
     #mission-bar .seg .fill {
       position: absolute; inset: 0 auto 0 0; width: 0%;
-      background: rgba(120, 200, 255, 0.9);
+      background: var(--crimson);
+      box-shadow: 0 0 8px rgba(214, 32, 63, 0.55);
       transition: width 0.08s linear;
     }
-    #mission-bar .seg.done .fill { width: 100% !important; background: rgba(120, 200, 255, 0.55); }
+    #mission-bar .seg.done .fill { width: 100% !important; background: var(--gold); box-shadow: 0 0 7px rgba(199, 160, 106, 0.45); }
     #mission-bar .mb-ctrls {
       display: flex; justify-content: space-between; align-items: center; gap: 12px;
       font: 9px var(--mono); letter-spacing: 0.12em; color: var(--ink-faint);
@@ -364,7 +375,7 @@
     }
     #mission-bar button.mb-btn:hover { color: var(--ink); border-color: var(--ink-faint); }
 
-    /* ── Plan-mode info-panel: numbered phase list + active-phase callout ─ */
+    /* Plan-mode info-panel: numbered phase list + active-phase callout */
     #info-panel .plan-list { margin-bottom: 13px; }
     #info-panel .pl-row {
       display: flex; align-items: baseline; gap: 9px;
@@ -378,20 +389,22 @@
     }
     #info-panel .pl-row .nm { letter-spacing: 0.1em; text-transform: uppercase; font-size: 10px; }
     #info-panel .pl-row.done { color: var(--ink-dim); }
-    #info-panel .pl-row.done .n { color: rgba(120, 200, 255, 0.7); }
-    #info-panel .pl-row.active { color: rgba(120, 200, 255, 0.95); }
-    #info-panel .pl-row.active .n { color: rgba(120, 200, 255, 0.95); }
+    #info-panel .pl-row.done .n { color: var(--gold); }
+    #info-panel .pl-row.active { color: var(--crimson); }
+    #info-panel .pl-row.active .n { color: var(--crimson); }
     #info-panel .plan-detail {
-      border: 1px solid rgba(120, 200, 255, 0.22);
+      border: 1px solid rgba(214, 32, 63, 0.28);
       border-radius: 10px;
       padding: 11px 13px;
-      background: rgba(120, 200, 255, 0.05);
+      background: rgba(214, 32, 63, 0.06);
+      box-shadow: 0 0 16px rgba(214, 32, 63, 0.12);
     }
     #info-panel .plan-detail strong {
       display: block;
-      color: rgba(120, 200, 255, 0.95);
+      color: var(--crimson);
       letter-spacing: 0.12em; text-transform: uppercase;
       font-size: 11px; margin-bottom: 3px;
+      text-shadow: 0 0 9px rgba(214, 32, 63, 0.4);
     }
     #info-panel .plan-detail .pd-sub {
       color: var(--ink-dim); font-size: 9px;
@@ -400,8 +413,8 @@
     #info-panel .plan-detail p { color: var(--ink-dim); margin-bottom: 9px; }
     #info-panel .plan-detail .pd-metric {
       display: inline-block;
-      color: rgba(120, 200, 255, 0.95);
-      border: 1px solid rgba(120, 200, 255, 0.3);
+      color: var(--crimson);
+      border: 1px solid rgba(214, 32, 63, 0.35);
       border-radius: 6px;
       padding: 3px 9px;
       font-size: 9px; letter-spacing: 0.08em;
@@ -447,10 +460,8 @@
 <script>
 'use strict';
 
-// ════════════════════════════════════════════════════════════════════════════
-//  Ephemeris — mirror of the Python source of truth (constants.py / data.py).
-//  Keep these in sync with the report engine; values are JPL/NASA J2000.0.
-// ════════════════════════════════════════════════════════════════════════════
+// Ephemeris — mirror of the Python source of truth (constants.py / data.py).
+// Keep these in sync with the report engine; values are JPL/NASA J2000.0.
 const EPHEMERIS = {
   EARTH_AU:        1.00000261,
   MARS_AU:         1.52371034,
@@ -564,9 +575,7 @@ const auVecToUnits = ([x, y, z]) => {
 // wall-clock time. Other bodies scale by Kepler's third law (ω ∝ 1/period).
 const EARTH_OMEGA = 0.48;
 
-// ════════════════════════════════════════════════════════════════════════════
-//  Shared engine — one renderer / camera / starfield across every view.
-// ════════════════════════════════════════════════════════════════════════════
+// Shared engine — one renderer / camera / starfield across every view.
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -580,9 +589,9 @@ const controls = new THREE.OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.06;
 
-// ── Bloom post-processing ────────────────────────────────────────────────────
-//  Threshold-gated UnrealBloom: only bright pixels (Sun, flares, plumes, bright
-//  stars) bleed light while planets stay crisp. Scene renders through the composer.
+// Bloom post-processing
+// Threshold-gated UnrealBloom: only bright pixels (Sun, flares, plumes, bright
+// stars) bleed light while planets stay crisp. Scene renders through the composer.
 const composer = new THREE.EffectComposer(renderer);
 composer.addPass(new THREE.RenderPass(scene, camera));
 const bloomPass = new THREE.UnrealBloomPass(
@@ -684,7 +693,7 @@ const clock      = new THREE.Clock();
 const labelLayer = document.getElementById('label-layer');
 const _proj      = new THREE.Vector3();   // scratch vector for label projection
 const _v0 = new THREE.Vector3(), _v1 = new THREE.Vector3();   // scratch vectors
-const _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3();   //   for animation math
+const _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3();   // for animation math
 const _YAXIS = new THREE.Vector3(0, 1, 0);
 const _XAXIS = new THREE.Vector3(1, 0, 0);
 const _camAnchor = new THREE.Vector3();   // live subject position for the chase camera
@@ -708,7 +717,7 @@ function qbezier(a, c, b, t, out) {
 }
 const _easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 
-// ── Per-view overlays: live caption (#status) + stepped panel (#info-panel) ──
+// Per-view overlays: live caption (#status) + stepped panel (#info-panel)
 const statusEl = document.getElementById('status');
 const panelEl  = document.getElementById('info-panel');
 function setStatus(html) {
@@ -720,9 +729,9 @@ function setPanel(html) {
   panelEl.classList.toggle('on', !!html);
 }
 
-// ── Body picker box (top-right) — a stable way to inspect a moving planet ─────
-//  Lists the Sun + eight planets; each entry routes to SolarView.focusOn via
-//  focusByName, so a name click zooms in exactly like clicking the body itself.
+// Body picker box (top-right) — a stable way to inspect a moving planet
+// Lists the Sun + eight planets; each entry routes to SolarView.focusOn via
+// focusByName, so a name click zooms in exactly like clicking the body itself.
 const bodyNavEl = document.getElementById('body-nav');
 const bodyNav = {
   buttons: {},
@@ -761,9 +770,9 @@ const bodyNav = {
 };
 bodyNav.build(['Sun', ...EPHEMERIS.planets.map((p) => p.name)]);
 
-// ── Texture loader ──────────────────────────────────────────────────────────
-//  Maps load async — bodies keep their base colour until the image arrives, and a
-//  failed load degrades to that flat colour instead of going blank.
+// Texture loader
+// Maps load async — bodies keep their base colour until the image arrives, and a
+// failed load degrades to that flat colour instead of going blank.
 const TEX_CDN = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/textures/planets/';   // three.js r128 maps (Earth + Moon only), via jsdelivr with CORS
 const PLANET_CDN = 'https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets@master/images/';   // planetpixelemporium maps for every other body
 const _texLoader = new THREE.TextureLoader();
@@ -804,10 +813,10 @@ const EARTH_TEX = {
 };
 const MOON_TEX = { map: loadTexture('moon_1024.jpg') };
 
-// ── Procedural planet textures (canvas → CanvasTexture) ──────────────────────
-//  The CDN only ships Earth + Moon maps, so the remaining bodies are painted:
-//  rocky worlds get craters + mottling, gas giants get latitudinal bands and
-//  storms, Venus gets a thick sulphuric haze. Built once at load (not per-frame).
+// Procedural planet textures (canvas → CanvasTexture)
+// The CDN only ships Earth + Moon maps, so the remaining bodies are painted:
+// rocky worlds get craters + mottling, gas giants get latitudinal bands and
+// storms, Venus gets a thick sulphuric haze. Built once at load (not per-frame).
 function _canvasTex(draw, w = 1024, h = 512) {
   const c = document.createElement('canvas');
   c.width = w; c.height = h;
@@ -973,7 +982,7 @@ const PLANET_PHOTO = {
   Neptune: { map: 'neptunemap.jpg' },
 };
 
-// ── Reusable mesh builders ──────────────────────────────────────────────────
+// Reusable mesh builders
 function makeBody(radius, color, opts = {}) {
   return new THREE.Mesh(
     new THREE.SphereGeometry(radius, 48, 48),
@@ -1167,7 +1176,7 @@ function makeStarship(scale = 1) {
   const group = new THREE.Group();
   const V = THREE.Vector2;
 
-  // ── Hull silhouette (radius, height): engine skirt → tank wall → ogive nose ──
+  // Hull silhouette (radius, height): engine skirt → tank wall → ogive nose
   const prof = [
     new V(0.00, -1.55), new V(0.32, -1.55),
     new V(0.47, -1.49), new V(0.50, -1.36),
@@ -1186,8 +1195,8 @@ function makeStarship(scale = 1) {
   });
   group.add(new THREE.Mesh(new THREE.LatheGeometry(prof, 72), steel));
 
-  // ── Black windward heat-shield: the same profile, nudged outward, swept over a
-  //    half turn so one face reads as the dark tiled side (the iconic two-tone). ──
+  // Black windward heat-shield: the same profile, nudged outward, swept over a
+  // half turn so one face reads as the dark tiled side (the iconic two-tone).
   const tile = new THREE.MeshPhongMaterial({ color: 0x141619, shininess: 10, specular: 0x232a31 });
   const shieldProf = prof.filter((p) => p.y >= -1.36 && p.x > 0.02)
                          .map((p) => new V(p.x * 1.015 + 0.004, p.y));
@@ -1195,7 +1204,7 @@ function makeStarship(scale = 1) {
     new THREE.LatheGeometry(shieldProf, 48, Math.PI * 0.5, Math.PI), tile
   ));
 
-  // ── Aero flaps: a small forward pair below the nose, a larger aft pair at base ──
+  // Aero flaps: a small forward pair below the nose, a larger aft pair at base
   const mkFlaps = (h, d, y, tilt) => {
     const geo = new THREE.BoxGeometry(0.08, h, d);
     for (const s of [1, -1]) {
@@ -1209,7 +1218,7 @@ function makeStarship(scale = 1) {
   mkFlaps(0.85, 0.50,  2.15,  0.10);
   mkFlaps(1.25, 0.85, -0.95, -0.06);
 
-  // ── Raptor cluster: nozzles tucked into the skirt (detail for close framing) ──
+  // Raptor cluster: nozzles tucked into the skirt (detail for close framing)
   const raptorMat = new THREE.MeshPhongMaterial({ color: 0x3a3f47, shininess: 40, specular: 0x565c64 });
   const nozzle = new THREE.ConeGeometry(0.12, 0.34, 12, 1, true);
   for (let i = 0; i < 6; i++) {
@@ -1222,8 +1231,8 @@ function makeStarship(scale = 1) {
   centerNozzle.position.y = -1.62; centerNozzle.scale.setScalar(1.15);
   group.add(centerNozzle);
 
-  // ── Layered engine plume (Group): white-hot core + blue body + diffuse halo +
-  //    a bright throat seed that bloom turns into a flare. animatePlumes() flickers it. ──
+  // Layered engine plume (Group): white-hot core + blue body + diffuse halo +
+  // a bright throat seed that bloom turns into a flare. animatePlumes() flickers it.
   const plume = new THREE.Group();
   const cone = (rad, len, color, opacity) => {
     const m = new THREE.Mesh(
@@ -1269,7 +1278,7 @@ function animatePlumes(t) {
   }
 }
 
-// ── LabelSet: projects 3D anchors to screen-space HTML labels ───────────────
+// LabelSet: projects 3D anchors to screen-space HTML labels
 class LabelSet {
   constructor() { this.items = []; }
   add(object3D, text, { offset = 16, faint = false } = {}) {
@@ -1293,15 +1302,13 @@ class LabelSet {
   }
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-//  Mission Plan — a guided, narrated flight sequence layered over a view.
+// Mission Plan — a guided, narrated flight sequence layered over a view.
 //
-//  A view opts in by defining `planTitle`, `planSub`, `planPhases` (an ordered
-//  list of {title, sub, detail, dv, dur, cam}), and three hooks: onPlanStart(),
-//  onPlanStop(restoreCam), and runPhase(idx, p, dt, speed) — where `p` is the
-//  current phase's 0→1 progress. The director sequences the phases; missionUI
-//  renders the timeline bar + the stepped info-panel.
-// ════════════════════════════════════════════════════════════════════════════
+// A view opts in by defining `planTitle`, `planSub`, `planPhases` (an ordered
+// list of {title, sub, detail, dv, dur, cam}), and three hooks: onPlanStart(),
+// onPlanStop(restoreCam), and runPhase(idx, p, dt, speed) — where `p` is the
+// current phase's 0→1 progress. The director sequences the phases; missionUI
+// renders the timeline bar + the stepped info-panel.
 class MissionDirector {
   constructor(view) {
     this.view = view;
@@ -1357,7 +1364,7 @@ class MissionDirector {
   }
 }
 
-// ── Mission overlay controller: bottom timeline bar + the right info-panel ──
+// Mission overlay controller: bottom timeline bar + the right info-panel
 const missionBar = document.getElementById('mission-bar');
 const missionCta = document.getElementById('mission-cta');
 const _fmtClock = (s) => {
@@ -1439,9 +1446,7 @@ const missionUI = {
   },
 };
 
-// ════════════════════════════════════════════════════════════════════════════
-//  View base — each tab is a self-contained scene graph under one root group.
-// ════════════════════════════════════════════════════════════════════════════
+// View base — each tab is a self-contained scene graph under one root group.
 class View {
   constructor() {
     this.root = new THREE.Group();
@@ -1459,7 +1464,7 @@ class View {
   update() {}            // (dt, speed) per-frame motion
 }
 
-// ── 1. Solar System (home / default) ────────────────────────────────────────
+// 1. Solar System (home / default)
 class SolarView extends View {
   constructor() {
     super();
@@ -1538,7 +1543,7 @@ class SolarView extends View {
     if (info) this.focusOn(info);
   }
 
-  // ── Click-to-focus: frame one body for a slow turntable close-up ──
+  // Click-to-focus: frame one body for a slow turntable close-up
   focusOn(info) {
     this.focused = info;
     this.labels.setVisible(false);   // declutter — the panel names the body
@@ -1581,7 +1586,7 @@ class SolarView extends View {
   }
 }
 
-// ── 2. Earth–Moon system ────────────────────────────────────────────────────
+// 2. Earth–Moon system
 class EarthMoonView extends View {
   constructor() {
     super();
@@ -1592,7 +1597,7 @@ class EarthMoonView extends View {
       'Moon period: 27.32 days · ISS in low Earth orbit<br>' +
       'Sizes exaggerated, distance compressed for clarity';
 
-    // ── Mission Plan: crewed lunar flight, launch → refuel → land ──
+    // Mission Plan: crewed lunar flight, launch → refuel → land
     this.director = new MissionDirector(this);
     this.planTitle = 'EARTH → MOON';
     this.planSub = 'Crewed lunar flight · Starship';
@@ -1669,7 +1674,7 @@ class EarthMoonView extends View {
     this.root.add(this.issPivot);
     this.labels.add(this.iss, 'ISS', { offset: 10, faint: true });
 
-    // ── Starship mission hardware (animated by the phase machine below) ──
+    // Starship mission hardware (animated by the phase machine below)
     this.leoOrbit = EARTH_R * 1.7;   // parking orbit radius
     this.ship = makeStarship(1.0);
     this.shipPivot = new THREE.Object3D();   // carries the ship around LEO
@@ -1884,7 +1889,7 @@ class EarthMoonView extends View {
   }
 }
 
-// ── 3. Earth → Moon → Mars (heliocentric + Hohmann transfer) ────────────────
+// 3. Earth → Moon → Mars (heliocentric + Hohmann transfer)
 class MarsView extends View {
   constructor() {
     super();
@@ -1897,9 +1902,9 @@ class MarsView extends View {
       'Phase detail in the side panel →';
     this.activeStep = -1;   // tracks which panel step is lit (avoid DOM thrash)
 
-    // ── Mission Plan: the full crewed Mars campaign — lunar staging, then the
-    //    real 2026 interplanetary transfer. Phases 0–3 play locally around Earth;
-    //    4–6 hand off to the solved Lambert arc in the heliocentric frame. ──
+    // Mission Plan: the full crewed Mars campaign — lunar staging, then the
+    // real 2026 interplanetary transfer. Phases 0–3 play locally around Earth;
+    // 4–6 hand off to the solved Lambert arc in the heliocentric frame.
     this.director = new MissionDirector(this);
     this.planTitle = 'EARTH → MOON → MARS';
     this.planSub = 'Crewed Mars campaign · Starship';
@@ -2012,7 +2017,7 @@ class MarsView extends View {
     this.labels.add(this.craft, 'Starship', { offset: 12 });
     this.progress = 0;
 
-    // ── Mission-Plan-only hardware: a tanker + fuel link for the staging phases. ──
+    // Mission-Plan-only hardware: a tanker + fuel link for the staging phases.
     this.marsEarthR = 5;
     this.moonRMars = 1.3;
     this.E = this.earthPts[0].clone();           // Earth's fixed departure position
@@ -2116,7 +2121,7 @@ class MarsView extends View {
     this.fuelLink.visible = false;
     plume.visible = false;
 
-    if (idx <= 3) {                     // ── Local staging around Earth/Moon ──
+    if (idx <= 3) {                     // Local staging around Earth/Moon
       craft.scale.setScalar(0.5);
 
       if (idx === 0) {                  // Ascent to LEO
@@ -2182,7 +2187,7 @@ class MarsView extends View {
         plume.visible = true;
       }
 
-    } else {                            // ── Heliocentric flight on the real arc ──
+    } else {                            // Heliocentric flight on the real arc
       craft.scale.setScalar(this.craftScale);
       let prog;
       if (idx === 4) {                  // Trans-Mars Injection
@@ -2208,9 +2213,7 @@ class MarsView extends View {
   }
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-//  View manager — tab switching with eased camera framing.
-// ════════════════════════════════════════════════════════════════════════════
+// View manager — tab switching with eased camera framing.
 const ORDER = ['moon', 'solar', 'mars'];
 const views = { moon: new EarthMoonView(), solar: new SolarView(), mars: new MarsView() };
 const hudEl = document.getElementById('hud');
@@ -2328,7 +2331,7 @@ const manager = {
   },
 };
 
-// ── Tab + keyboard wiring ────────────────────────────────────────────────────
+// Tab + keyboard wiring
 tabEls.forEach((t) => t.addEventListener('click', () => manager.switchTo(t.dataset.view)));
 window.addEventListener('keydown', (ev) => {
   if (ev.key === 'Escape') {
@@ -2345,9 +2348,9 @@ window.addEventListener('keydown', (ev) => {
   }
 });
 
-// ── Click-to-focus: pick a planet/Sun in the Solar System view ───────────────
-//  A raycaster turns pointer taps into body selections. We distinguish a click
-//  from an OrbitControls drag by measuring pointer travel between down and up.
+// Click-to-focus: pick a planet/Sun in the Solar System view
+// A raycaster turns pointer taps into body selections. We distinguish a click
+// from an OrbitControls drag by measuring pointer travel between down and up.
 const _ray = new THREE.Raycaster();
 const _ptr = new THREE.Vector2();
 const _down = { x: 0, y: 0 };
@@ -2379,23 +2382,23 @@ canvas.addEventListener('pointermove', (ev) => {
   canvas.style.cursor = _pickFocus(ev) ? 'pointer' : '';
 });
 
-// ── Mission Plan launch button ─────────────────────────────────────────────────
-//  Starts (or replays) the guided flight sequence for the current view. While a
-//  sequence is playing the button is inert — exit/replay live on the timeline bar.
+// Mission Plan launch button
+// Starts (or replays) the guided flight sequence for the current view. While a
+// sequence is playing the button is inert — exit/replay live on the timeline bar.
 missionCta.addEventListener('click', () => {
   const v = views[manager.activeId];
   if (!v || !v.director || v.director.active) return;
   v.director.start();
 });
 
-// ── Speed control ─────────────────────────────────────────────────────────────
+// Speed control
 const speedInput = document.getElementById('speed');
 const speedLabel = document.getElementById('speedVal');
 speedInput.addEventListener('input', () => {
   speedLabel.textContent = parseFloat(speedInput.value).toFixed(2) + '×';
 });
 
-// ── Resize ────────────────────────────────────────────────────────────────────
+// Resize
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
@@ -2403,7 +2406,7 @@ window.addEventListener('resize', () => {
   composer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// ── Boot ──────────────────────────────────────────────────────────────────────
+// Boot
 manager.switchTo('solar', true);   // home view, no camera animation on load
 
 function animate() {
