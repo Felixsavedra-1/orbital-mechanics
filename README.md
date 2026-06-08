@@ -1,4 +1,4 @@
-# Orbital Simulation
+# Orbital Mechanics Engine
 
 ![Orbital dashboard — Moon · Solar System · Mars views](preview.gif)
 
