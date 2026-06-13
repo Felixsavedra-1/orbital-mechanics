@@ -1,6 +1,6 @@
 # Orbital Mechanics Engine
 
-![Orbital dashboard — Moon · Solar System · Mars views](preview.gif)
+![Orbital dashboard — Moon · Solar System · Mars views](dashboard.gif)
 
 > Physics-based orbital mechanics engine — 8 planets, real mission planning, and a live 3D visualization driven by the same data.
 

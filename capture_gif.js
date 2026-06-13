@@ -85,12 +85,12 @@ async function main() {
 
   gif.finish();
 
-  const outPath = path.join(__dirname, 'preview.gif');
+  const outPath = path.join(__dirname, 'dashboard.gif');
   const data = gif.out.getData();
   fs.writeFileSync(outPath, data);
 
   const kb = (data.length / 1024).toFixed(0);
-  console.log(`Done! Saved preview.gif (${kb} KB)`);
+  console.log(`Done! Saved dashboard.gif (${kb} KB)`);
 }
 
 main().catch(err => {
