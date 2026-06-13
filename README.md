@@ -79,7 +79,7 @@ One renderer, three views — each runs a live mission narrative driven by the s
 - **Solar System** `2` — all 8 planets on their J2000.0 orbits. Click any planet — or use the body picker, top-right — to ease the camera in and dock a data sheet of its physical stats and a one-line blurb.
 - **Mars** `3` — a heliocentric Earth → Mars **Starship Hohmann transfer**. The craft rides the minimum-energy ellipse past the TMI / Cruise / MOI waypoints, while the side panel steps through each phase: Trans-Mars Injection (Δv ~2.95 km/s) → ~259-day coast → Mars Orbit Insertion (Δv ~2.65 km/s; total ~5.59 km/s).
 
-A live caption (bottom) names the current phase; the stepped side panel (right) details it.
+A live caption (bottom) names the current phase, in sync with the stepped side panel (right).
 
 | Control | Action |
 |---|---|
