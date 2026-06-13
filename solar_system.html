@@ -4,22 +4,32 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Orbital Mechanics — Mission Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
-      /* foreground — bone-white #ECE5D5 = 236,229,213 */
-      --ink:        rgba(236, 229, 213, 0.88);
-      --ink-dim:    rgba(236, 229, 213, 0.58);
-      --ink-faint:  rgba(236, 229, 213, 0.34);
-      --hair:       rgba(236, 229, 213, 0.14);
+      /* foreground — bone-white #EEE8DA */
+      --ink:        rgba(238, 232, 218, 0.96);
+      --ink-dim:    rgba(238, 232, 218, 0.74);
+      --ink-faint:  rgba(238, 232, 218, 0.50);
+      --hair:       rgba(238, 232, 218, 0.17);
 
       /* accents */
-      --crimson:        #D6203F;   /* bright — live/active text & glyphs */
+      --crimson:        #E8294A;   /* bright — live/active text & glyphs */
       --crimson-deep:   #B3122B;   /* deep  — borders, fills, hovers */
       --titanium:       #9DA3A8;   /* neutral secondary */
-      --gold:           #C7A06A;   /* positive / completed */
+      --gold:           #D8B27C;   /* positive / completed */
 
-      --mono: 'Courier New', ui-monospace, monospace;
+      /* console glass — shared panel treatment */
+      --glass:        rgba(9, 11, 19, 0.74);
+      --glass-soft:   rgba(9, 11, 19, 0.58);
+      --panel-shadow: 0 10px 36px rgba(0, 0, 0, 0.5);
+      --panel-blur:   blur(14px) saturate(140%);
+
+      --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+      --disp: 'Rajdhani', 'Avenir Next Condensed', 'Arial Narrow', sans-serif;
     }
     body { background: #000; overflow: hidden; color: var(--ink); }
     canvas { display: block; }
@@ -27,101 +37,116 @@
     /* Top tab bar */
     #tabs {
       position: absolute;
-      top: 18px; left: 50%;
+      top: 16px; left: 50%;
       transform: translateX(-50%);
       display: flex;
-      gap: 4px;
-      padding: 4px;
+      gap: 5px;
+      padding: 5px;
       border: 1px solid var(--hair);
       border-radius: 999px;
-      background: rgba(8, 10, 18, 0.5);
-      backdrop-filter: blur(6px);
+      background: var(--glass);
+      backdrop-filter: var(--panel-blur);
+      box-shadow: var(--panel-shadow);
       z-index: 10;
     }
     .tab {
       appearance: none;
       border: 0;
       background: transparent;
-      color: var(--ink-faint);
-      font: 11px var(--mono);
-      letter-spacing: 0.16em;
+      color: var(--ink-dim);
+      font: 600 14px/1 var(--disp);
+      letter-spacing: 0.15em;
       text-transform: uppercase;
-      padding: 7px 18px;
+      padding: 9px 22px 8px;
       border-radius: 999px;
       cursor: pointer;
       transition: color 0.25s, background 0.25s;
     }
-    .tab:hover { color: var(--ink-dim); }
+    .tab:hover { color: var(--ink); background: rgba(238, 232, 218, 0.07); }
     .tab.active {
-      color: #06080f;
-      background: rgba(236, 229, 213, 0.9);
+      color: #0a0c12;
+      background: rgba(238, 232, 218, 0.96);
     }
     .tab .key {
-      opacity: 0.5;
-      font-size: 9px;
-      margin-left: 6px;
+      opacity: 0.45;
+      font: 10px var(--mono);
+      margin-left: 8px;
     }
-    .tab.active .key { opacity: 0.45; }
+    .tab.active .key { opacity: 0.5; }
 
     /* HUD (top-left, per-view) */
     #hud {
       position: absolute;
-      top: 18px; left: 18px;
-      max-width: 340px;
+      top: 16px; left: 18px;
+      max-width: 390px;
+      padding: 14px 17px 13px;
+      border: 1px solid var(--hair);
+      border-radius: 13px;
+      background: var(--glass-soft);
+      backdrop-filter: var(--panel-blur);
       color: var(--ink-dim);
-      font: 11px/1.9 var(--mono);
-      letter-spacing: 0.04em;
+      font: 12px/1.85 var(--mono);
+      letter-spacing: 0.02em;
       pointer-events: none;
       z-index: 5;
     }
+    #hud:empty { display: none; }
     #hud strong {
       display: block;
       color: var(--ink);
-      font-size: 13px;
-      letter-spacing: 0.14em;
-      margin-bottom: 4px;
+      font: 600 18px/1.2 var(--disp);
+      letter-spacing: 0.18em;
+      margin-bottom: 6px;
     }
     #hud .accent { color: var(--crimson); }
 
     /* Speed control (bottom-center) */
     #controls {
       position: absolute;
-      bottom: 24px; left: 50%;
+      bottom: 20px; left: 50%;
       transform: translateX(-50%);
       display: flex;
       align-items: center;
       gap: 14px;
+      padding: 10px 20px;
+      border: 1px solid var(--hair);
+      border-radius: 999px;
+      background: var(--glass-soft);
+      backdrop-filter: var(--panel-blur);
       color: var(--ink-dim);
-      font: 11px var(--mono);
-      letter-spacing: 0.08em;
+      font: 500 11px var(--mono);
+      letter-spacing: 0.12em;
       z-index: 5;
     }
+    #speedVal { color: var(--ink); font-variant-numeric: tabular-nums; min-width: 48px; text-align: right; }
     input[type=range] {
       -webkit-appearance: none;
-      width: 200px; height: 2px;
-      background: rgba(157, 163, 168, 0.4);
+      width: 210px; height: 3px;
+      background: rgba(157, 163, 168, 0.45);
       border-radius: 2px;
       outline: none;
       cursor: pointer;
     }
     input[type=range]::-webkit-slider-thumb {
       -webkit-appearance: none;
-      width: 12px; height: 12px;
+      width: 13px; height: 13px;
       border-radius: 50%;
-      background: rgba(236, 229, 213, 0.9);
+      background: var(--ink);
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
       cursor: pointer;
     }
 
     /* Live mission caption (bottom, per-view) */
     #status {
       position: absolute;
-      bottom: 58px; left: 50%;
+      bottom: 68px; left: 50%;
       transform: translateX(-50%);
       color: var(--ink-dim);
-      font: 11px var(--mono);
+      font: 500 12px var(--mono);
       letter-spacing: 0.14em;
       text-transform: uppercase;
       text-align: center;
+      text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
       pointer-events: none;
       opacity: 0;
       transition: opacity 0.3s;
@@ -135,15 +160,16 @@
       position: absolute;
       top: 50%; right: 22px;
       transform: translateY(-50%);
-      width: 250px;
-      padding: 16px 18px;
+      width: 285px;
+      padding: 18px 20px;
       border: 1px solid var(--hair);
-      border-radius: 12px;
-      background: rgba(8, 10, 18, 0.5);
-      backdrop-filter: blur(6px);
+      border-radius: 14px;
+      background: var(--glass);
+      backdrop-filter: var(--panel-blur);
+      box-shadow: var(--panel-shadow);
       color: var(--ink-dim);
-      font: 10px/1.6 var(--mono);
-      letter-spacing: 0.04em;
+      font: 11px/1.65 var(--mono);
+      letter-spacing: 0.02em;
       pointer-events: none;
       opacity: 0;
       transition: opacity 0.3s;
@@ -153,20 +179,21 @@
     #info-panel h4,
     #body-nav .bn-detail h4 {
       color: var(--ink);
-      font-size: 12px;
-      letter-spacing: 0.14em;
-      margin-bottom: 2px;
+      font: 600 17px/1.2 var(--disp);
+      letter-spacing: 0.16em;
+      margin-bottom: 3px;
     }
-    #info-panel .sub { color: var(--ink-faint); margin-bottom: 12px; }
+    #info-panel .sub { color: var(--ink-faint); font-size: 10px; margin-bottom: 14px; }
     #info-panel .step {
-      padding: 7px 0 7px 14px;
-      border-left: 1px solid var(--hair);
+      padding: 8px 0 8px 15px;
+      border-left: 2px solid var(--hair);
       color: var(--ink-faint);
       transition: color 0.3s, border-color 0.3s;
     }
-    #info-panel .step + .step { margin-top: 2px; }
+    #info-panel .step + .step { margin-top: 3px; }
     #info-panel .step strong {
       display: block;
+      font-size: 11.5px;
       letter-spacing: 0.1em;
       text-transform: uppercase;
       margin-bottom: 2px;
@@ -175,79 +202,83 @@
       color: var(--ink-dim);
       border-left-color: var(--crimson);
     }
-    #info-panel .step.active strong { color: var(--crimson); text-shadow: 0 0 10px rgba(214, 32, 63, 0.45); }
-    #info-panel .dv { color: var(--ink-dim); }
+    #info-panel .step.active strong { color: var(--crimson); text-shadow: 0 0 10px rgba(232, 41, 74, 0.45); }
+    #info-panel .dv { color: var(--ink); }
 
     /* Planet close-up data sheet (reuses #info-panel; also docks in #body-nav) */
     #info-panel .blurb,
     #body-nav .bn-detail .blurb {
       color: var(--ink-dim);
       margin-bottom: 12px;
-      padding-bottom: 10px;
+      padding-bottom: 11px;
       border-bottom: 1px solid var(--hair);
     }
     #info-panel .sheet .row,
     #body-nav .bn-detail .sheet .row {
       display: flex;
       justify-content: space-between;
+      align-items: baseline;
       gap: 12px;
-      padding: 4px 0;
+      padding: 5px 0;
     }
     #info-panel .sheet .row + .row,
-    #body-nav .bn-detail .sheet .row + .row { border-top: 1px solid rgba(236, 229, 213, 0.07); }
+    #body-nav .bn-detail .sheet .row + .row { border-top: 1px solid rgba(238, 232, 218, 0.09); }
     #info-panel .sheet .row .k,
     #body-nav .bn-detail .sheet .row .k {
       color: var(--ink-faint);
+      font-size: 9.5px;
       text-transform: uppercase;
       letter-spacing: 0.1em;
+      flex: none;
     }
     #info-panel .sheet .row .v,
-    #body-nav .bn-detail .sheet .row .v { color: var(--ink); text-align: right; }
+    #body-nav .bn-detail .sheet .row .v { color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; }
     #info-panel .hint,
     #body-nav .bn-detail .hint {
-      margin-top: 12px;
+      margin-top: 13px;
       color: var(--ink-faint);
-      font-size: 9px;
+      font-size: 9.5px;
       letter-spacing: 0.08em;
     }
 
     /* Body picker (top-right, Solar System tab) */
     #body-nav {
       position: absolute;
-      top: 64px; right: 22px;
+      top: 70px; right: 22px;
       display: none;                 /* shown only on the Solar System tab */
       flex-direction: column;
-      padding: 10px 12px 10px;
-      width: 210px;
-      max-height: calc(100vh - 86px);
+      padding: 12px 13px;
+      width: 235px;
+      max-height: calc(100vh - 96px);
       overflow-y: auto;
       border: 1px solid var(--hair);
-      border-radius: 12px;
-      background: rgba(8, 10, 18, 0.5);
-      backdrop-filter: blur(6px);
+      border-radius: 14px;
+      background: var(--glass);
+      backdrop-filter: var(--panel-blur);
+      box-shadow: var(--panel-shadow);
       z-index: 7;
     }
     #body-nav::-webkit-scrollbar { width: 6px; }
-    #body-nav::-webkit-scrollbar-thumb { background: rgba(236, 229, 213, 0.14); border-radius: 3px; }
+    #body-nav::-webkit-scrollbar-thumb { background: rgba(238, 232, 218, 0.16); border-radius: 3px; }
     #body-nav .bn-list { display: flex; flex-direction: column; gap: 2px; }
     /* Selected-body data sheet, docked beneath the picker as one console box */
     #body-nav .bn-detail {
       display: none;
-      margin-top: 10px;
-      padding-top: 10px;
+      margin-top: 11px;
+      padding-top: 12px;
       border-top: 1px solid var(--hair);
       color: var(--ink-dim);
-      font: 10px/1.6 var(--mono);
-      letter-spacing: 0.04em;
+      font: 10.5px/1.65 var(--mono);
+      letter-spacing: 0.02em;
     }
     #body-nav.has-detail .bn-detail { display: block; }
     #body-nav .bn-title {
       color: var(--ink-faint);
-      font: 9px var(--mono);
-      letter-spacing: 0.16em;
+      font: 600 11px var(--disp);
+      letter-spacing: 0.26em;
       text-transform: uppercase;
-      padding: 0 4px 6px;
-      margin-bottom: 4px;
+      padding: 0 5px 7px;
+      margin-bottom: 5px;
       border-bottom: 1px solid var(--hair);
     }
     #body-nav .bn-item {
@@ -255,19 +286,19 @@
       border: 0;
       background: transparent;
       text-align: left;
-      color: var(--ink-faint);
-      font: 10px var(--mono);
+      color: var(--ink-dim);
+      font: 500 11px var(--mono);
       letter-spacing: 0.1em;
       text-transform: uppercase;
-      padding: 5px 8px;
-      border-radius: 6px;
+      padding: 6px 10px;
+      border-radius: 7px;
       cursor: pointer;
       transition: color 0.2s, background 0.2s;
     }
-    #body-nav .bn-item:hover { color: var(--ink); background: rgba(236, 229, 213, 0.06); }
+    #body-nav .bn-item:hover { color: var(--ink); background: rgba(238, 232, 218, 0.07); }
     #body-nav .bn-item.active {
       color: var(--crimson);
-      background: rgba(214, 32, 63, 0.12);
+      background: rgba(232, 41, 74, 0.13);
     }
 
     /* Projected body labels */
@@ -275,9 +306,10 @@
     .plabel {
       position: absolute;
       color: var(--ink-dim);
-      font: 9px/1 var(--mono);
-      letter-spacing: 0.1em;
+      font: 500 10px/1 var(--mono);
+      letter-spacing: 0.13em;
       text-transform: uppercase;
+      text-shadow: 0 1px 5px rgba(0, 0, 0, 0.95), 0 0 2px rgba(0, 0, 0, 0.85);
       transform: translate(-50%, -100%);
       white-space: nowrap;
       transition: opacity 0.2s;
@@ -287,44 +319,45 @@
     /* Mission Plan launch button (Moon & Mars tabs) */
     #mission-cta {
       position: absolute;
-      bottom: 24px; left: 22px;
+      bottom: 22px; left: 22px;
       display: none;                 /* shown on moon/mars tabs only */
       align-items: center;
-      gap: 9px;
-      padding: 9px 17px;
-      border: 1px solid rgba(214, 32, 63, 0.5);
+      gap: 10px;
+      padding: 11px 21px 10px;
+      border: 1px solid rgba(232, 41, 74, 0.55);
       border-radius: 999px;
-      background: rgba(8, 10, 18, 0.5);
-      backdrop-filter: blur(6px);
+      background: var(--glass-soft);
+      backdrop-filter: var(--panel-blur);
       color: var(--crimson);
-      font: 11px var(--mono);
+      font: 600 14px/1 var(--disp);
       letter-spacing: 0.16em;
       text-transform: uppercase;
       cursor: pointer;
       z-index: 8;
-      box-shadow: 0 0 14px rgba(214, 32, 63, 0.22);
-      text-shadow: 0 0 8px rgba(214, 32, 63, 0.35);
+      box-shadow: 0 0 16px rgba(232, 41, 74, 0.25);
+      text-shadow: 0 0 8px rgba(232, 41, 74, 0.35);
       transition: color 0.2s, background 0.2s, border-color 0.2s, box-shadow 0.2s;
     }
-    #mission-cta:hover { background: rgba(214, 32, 63, 0.14); border-color: rgba(214, 32, 63, 0.8); box-shadow: 0 0 18px rgba(214, 32, 63, 0.38); }
-    #mission-cta .glyph { font-size: 9px; transform: translateY(0.5px); }
+    #mission-cta:hover { background: rgba(232, 41, 74, 0.15); border-color: rgba(232, 41, 74, 0.85); box-shadow: 0 0 20px rgba(232, 41, 74, 0.4); }
+    #mission-cta .glyph { font-size: 10px; transform: translateY(-0.5px); }
     #mission-cta.running { color: var(--ink-faint); border-color: var(--hair); cursor: default; box-shadow: none; text-shadow: none; }
-    #mission-cta.running:hover { background: rgba(8, 10, 18, 0.5); border-color: var(--hair); box-shadow: none; }
+    #mission-cta.running:hover { background: var(--glass-soft); border-color: var(--hair); box-shadow: none; }
 
     /* Mission timeline (bottom, during a plan) — launch-broadcast feel */
     #mission-bar {
       position: absolute;
-      bottom: 86px; left: 50%;
+      bottom: 92px; left: 50%;
       transform: translateX(-50%);
       display: none;
       flex-direction: column;
-      gap: 9px;
-      width: min(640px, 84vw);
-      padding: 13px 18px 14px;
+      gap: 10px;
+      width: min(680px, 86vw);
+      padding: 14px 20px 15px;
       border: 1px solid var(--hair);
-      border-radius: 12px;
-      background: rgba(8, 10, 18, 0.58);
-      backdrop-filter: blur(8px);
+      border-radius: 14px;
+      background: var(--glass);
+      backdrop-filter: var(--panel-blur);
+      box-shadow: var(--panel-shadow);
       z-index: 8;
     }
     #mission-bar.on { display: flex; }
@@ -333,42 +366,42 @@
       justify-content: space-between;
       align-items: baseline;
       gap: 16px;
-      font: 9px var(--mono);
+      font: 500 10px var(--mono);
       letter-spacing: 0.16em;
       text-transform: uppercase;
       color: var(--ink-faint);
     }
-    #mission-bar .mb-head .phase { color: var(--crimson); letter-spacing: 0.13em; flex: 1; text-align: center; text-shadow: 0 0 9px rgba(214, 32, 63, 0.4); }
-    #mission-bar .mb-head .clock { font-variant-numeric: tabular-nums; }
-    #mission-bar .mb-track { display: flex; gap: 4px; }
+    #mission-bar .mb-head .phase { color: var(--crimson); font-size: 11.5px; letter-spacing: 0.13em; flex: 1; text-align: center; text-shadow: 0 0 9px rgba(232, 41, 74, 0.4); }
+    #mission-bar .mb-head .clock { color: var(--ink-dim); font-size: 11px; font-variant-numeric: tabular-nums; }
+    #mission-bar .mb-track { display: flex; gap: 5px; }
     #mission-bar .seg {
-      position: relative; flex: 1; height: 3px;
-      border-radius: 2px;
-      background: rgba(236, 229, 213, 0.12);
+      position: relative; flex: 1; height: 5px;
+      border-radius: 3px;
+      background: rgba(238, 232, 218, 0.13);
       overflow: hidden;
     }
     #mission-bar .seg .fill {
       position: absolute; inset: 0 auto 0 0; width: 0%;
       background: var(--crimson);
-      box-shadow: 0 0 8px rgba(214, 32, 63, 0.55);
+      box-shadow: 0 0 8px rgba(232, 41, 74, 0.55);
       transition: width 0.08s linear;
     }
-    #mission-bar .seg.done .fill { width: 100% !important; background: var(--gold); box-shadow: 0 0 7px rgba(199, 160, 106, 0.45); }
+    #mission-bar .seg.done .fill { width: 100% !important; background: var(--gold); box-shadow: 0 0 7px rgba(216, 178, 124, 0.45); }
     #mission-bar .mb-ctrls {
       display: flex; justify-content: space-between; align-items: center; gap: 12px;
-      font: 9px var(--mono); letter-spacing: 0.12em; color: var(--ink-faint);
+      font: 10px var(--mono); letter-spacing: 0.1em; color: var(--ink-faint);
     }
     #mission-bar .mb-ctrls .cap { text-transform: uppercase; }
-    #mission-bar .mb-ctrls .btns { display: flex; gap: 6px; }
+    #mission-bar .mb-ctrls .btns { display: flex; gap: 7px; }
     #mission-bar button.mb-btn {
       appearance: none;
       border: 1px solid var(--hair);
       background: transparent;
       color: var(--ink-dim);
-      font: 9px var(--mono);
+      font: 500 10px var(--mono);
       letter-spacing: 0.14em;
       text-transform: uppercase;
-      padding: 5px 12px;
+      padding: 6px 14px;
       border-radius: 999px;
       cursor: pointer;
       transition: color 0.2s, border-color 0.2s;
@@ -376,48 +409,50 @@
     #mission-bar button.mb-btn:hover { color: var(--ink); border-color: var(--ink-faint); }
 
     /* Plan-mode info-panel: numbered phase list + active-phase callout */
-    #info-panel .plan-list { margin-bottom: 13px; }
+    #info-panel .plan-list { margin-bottom: 14px; }
     #info-panel .pl-row {
-      display: flex; align-items: baseline; gap: 9px;
-      padding: 4px 0;
+      display: flex; align-items: baseline; gap: 10px;
+      padding: 4.5px 0;
       color: var(--ink-faint);
       transition: color 0.25s;
     }
     #info-panel .pl-row .n {
-      width: 13px; flex: none; text-align: center;
-      font-size: 9px; color: var(--ink-faint);
+      width: 14px; flex: none; text-align: center;
+      font-size: 10px; color: var(--ink-faint);
     }
-    #info-panel .pl-row .nm { letter-spacing: 0.1em; text-transform: uppercase; font-size: 10px; }
+    #info-panel .pl-row .nm { letter-spacing: 0.1em; text-transform: uppercase; font-size: 11px; }
     #info-panel .pl-row.done { color: var(--ink-dim); }
     #info-panel .pl-row.done .n { color: var(--gold); }
     #info-panel .pl-row.active { color: var(--crimson); }
     #info-panel .pl-row.active .n { color: var(--crimson); }
     #info-panel .plan-detail {
-      border: 1px solid rgba(214, 32, 63, 0.28);
-      border-radius: 10px;
-      padding: 11px 13px;
-      background: rgba(214, 32, 63, 0.06);
-      box-shadow: 0 0 16px rgba(214, 32, 63, 0.12);
+      border: 1px solid rgba(232, 41, 74, 0.3);
+      border-radius: 11px;
+      padding: 12px 14px;
+      background: rgba(232, 41, 74, 0.07);
+      box-shadow: 0 0 16px rgba(232, 41, 74, 0.12);
     }
     #info-panel .plan-detail strong {
       display: block;
       color: var(--crimson);
-      letter-spacing: 0.12em; text-transform: uppercase;
-      font-size: 11px; margin-bottom: 3px;
-      text-shadow: 0 0 9px rgba(214, 32, 63, 0.4);
+      font: 600 14px/1.2 var(--disp);
+      letter-spacing: 0.14em; text-transform: uppercase;
+      margin-bottom: 3px;
+      text-shadow: 0 0 9px rgba(232, 41, 74, 0.4);
     }
     #info-panel .plan-detail .pd-sub {
-      color: var(--ink-dim); font-size: 9px;
+      color: var(--ink-dim); font-size: 10px;
       letter-spacing: 0.06em; margin-bottom: 8px;
     }
-    #info-panel .plan-detail p { color: var(--ink-dim); margin-bottom: 9px; }
+    #info-panel .plan-detail p { color: var(--ink-dim); font-size: 10.5px; margin-bottom: 10px; }
     #info-panel .plan-detail .pd-metric {
       display: inline-block;
       color: var(--crimson);
-      border: 1px solid rgba(214, 32, 63, 0.35);
+      border: 1px solid rgba(232, 41, 74, 0.38);
       border-radius: 6px;
-      padding: 3px 9px;
-      font-size: 9px; letter-spacing: 0.08em;
+      padding: 4px 10px;
+      font-size: 10px; letter-spacing: 0.08em;
+      font-variant-numeric: tabular-nums;
     }
   </style>
 </head>
@@ -451,6 +486,7 @@
 <!-- Post-processing for the Sun's bloom glow -->
 <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
 <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/shaders/GammaCorrectionShader.js"></script>
 <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
 <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
 <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
@@ -576,9 +612,15 @@ const auVecToUnits = ([x, y, z]) => {
 const EARTH_OMEGA = 0.48;
 
 // Shared engine — one renderer / camera / starfield across every view.
+// Filmic color pipeline: textures are tagged sRGB and decoded to linear, lighting
+// happens in linear space with ACES tone mapping, and the composer's final
+// GammaCorrection pass encodes back to sRGB (renderer.outputEncoding is bypassed
+// when rendering through an EffectComposer, so the explicit pass is required).
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
 document.body.appendChild(renderer.domElement);
 
 const scene  = new THREE.Scene();
@@ -596,13 +638,19 @@ const composer = new THREE.EffectComposer(renderer);
 composer.addPass(new THREE.RenderPass(scene, camera));
 const bloomPass = new THREE.UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
-  0.55,   // strength — enough to make the Sun & flares glow, not blow them out
-  0.4,
-  0.82    // luminance threshold — only the brightest pixels bleed; surface detail survives
+  0.5,    // strength — kept moderate; the wide soft glow comes from the Sun's
+          // halo sprite instead, because heavy bloom shows coarse-mip blockiness
+  0.15,   // radius — small, weighting the fine mips; large radii leak big
+          // pixelated squares around any strong emitter
+  0.85    // luminance threshold — above the brightest tone-mapped planet disc
+          // (~0.8), so only the Sun, specular glints and plumes bleed; a lower
+          // cut blooms whole discs into blocky coarse-mip squares
 );
 composer.addPass(bloomPass);
+composer.addPass(new THREE.ShaderPass(THREE.GammaCorrectionShader));   // linear → sRGB output
 
-scene.add(new THREE.AmbientLight(0x223047, 1.1));
+// Low cool fill so unlit hemispheres read as space-dark, not pure black.
+scene.add(new THREE.AmbientLight(0x2a3340, 0.55));
 
 // Deep-space backdrop — present in all views. Layered star shells (varied size,
 // brightness, and colour), a tilted Milky Way band, and a few faint nebulae.
@@ -631,6 +679,7 @@ let starfield;
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
     return new THREE.Points(geo, new THREE.PointsMaterial({
       size, vertexColors: true, sizeAttenuation: false, transparent: true,
+      blending: THREE.AdditiveBlending, depthWrite: false,   // light adds — no dark quads over nebulae
     }));
   };
   starfield.add(shell(9000, 16000, 1.0, 0.7));
@@ -653,6 +702,7 @@ let starfield;
   mgeo.setAttribute('color', new THREE.BufferAttribute(mc, 3));
   const band = new THREE.Points(mgeo, new THREE.PointsMaterial({
     size: 1.2, vertexColors: true, sizeAttenuation: false, transparent: true, opacity: 0.8,
+    blending: THREE.AdditiveBlending, depthWrite: false,
   }));
   band.rotation.z = 0.5;   // tilt the galactic plane off the ecliptic
   starfield.add(band);
@@ -666,13 +716,15 @@ let starfield;
     x.fillStyle = g; x.fillRect(0, 0, 256, 256);
     return new THREE.CanvasTexture(c);
   };
+  // Faint by design — the sRGB output stage lifts low values, and anything
+  // brighter starts crossing the bloom threshold in blocky coarse-mip patches.
   const nebTints = [
-    ['rgba(120,90,200,0.22)', 'rgba(120,90,200,0)'],
-    ['rgba(40,120,200,0.20)', 'rgba(40,120,200,0)'],
-    ['rgba(40,170,160,0.16)', 'rgba(40,170,160,0)'],
-    ['rgba(200,80,140,0.16)', 'rgba(200,80,140,0)'],
+    ['rgba(120,90,200,0.030)', 'rgba(120,90,200,0)'],
+    ['rgba(40,120,200,0.026)', 'rgba(40,120,200,0)'],
+    ['rgba(40,170,160,0.020)', 'rgba(40,170,160,0)'],
+    ['rgba(200,80,140,0.022)', 'rgba(200,80,140,0)'],
   ];
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < 5; i++) {
     const tint = nebTints[i % nebTints.length];
     const spr = new THREE.Sprite(new THREE.SpriteMaterial({
       map: softSprite(tint[0], tint[1]), blending: THREE.AdditiveBlending,
@@ -694,17 +746,20 @@ const labelLayer = document.getElementById('label-layer');
 const _proj      = new THREE.Vector3();   // scratch vector for label projection
 const _v0 = new THREE.Vector3(), _v1 = new THREE.Vector3();   // scratch vectors
 const _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3();   // for animation math
+const _v4 = new THREE.Vector3(), _v5 = new THREE.Vector3(), _v6 = new THREE.Vector3();
+const _qa = new THREE.Quaternion(), _qb = new THREE.Quaternion();   // attitude blending
 const _YAXIS = new THREE.Vector3(0, 1, 0);
 const _XAXIS = new THREE.Vector3(1, 0, 0);
 const _camAnchor = new THREE.Vector3();   // live subject position for the chase camera
 const _chaseV    = new THREE.Vector3();   // scratch for the chase camera's desired pose
 
-// Build a Mission-Plan chase-camera descriptor: a close shot pinned at `offset`
-// from a moving subject (`anchorFn` returns its current world position each frame),
-// so the camera rides the spacecraft through a phase instead of sitting at a fixed
-// wide pose. `tau` is the follow smoothing (seconds); smaller = snappier.
-const trackCam = (anchorFn, ox, oy, oz, min, tau = 0.65, max = 6000) =>
-  ({ track: anchorFn, offset: new THREE.Vector3(ox, oy, oz), min, max, tau });
+// Build a Mission-Plan chase-camera descriptor: the camera trails the moving
+// subject (`anchorFn` returns its current world position each frame) from `back`
+// units behind its smoothed direction of travel, lifted `up` above it — so flight
+// always reads forward and the ship stays centered through turns, burns and
+// landings. `tau` is the follow smoothing (seconds); smaller = snappier.
+const trackCam = (anchorFn, back, up, min, tau = 0.6, max = 6000) =>
+  ({ track: anchorFn, back, up, min, max, tau });
 
 // Quadratic Bézier a→b bowed through control c, evaluated at t into `out`.
 function qbezier(a, c, b, t, out) {
@@ -716,6 +771,14 @@ function qbezier(a, c, b, t, out) {
   );
 }
 const _easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+
+// Stretch a glowing fuel-transfer cylinder between two docked craft.
+function linkBetween(link, a, b) {
+  link.visible = true;
+  link.position.copy(a).lerp(b, 0.5);
+  link.scale.y = a.distanceTo(b);
+  link.quaternion.setFromUnitVectors(_YAXIS, _v6.subVectors(b, a).normalize());
+}
 
 // Per-view overlays: live caption (#status) + stepped panel (#info-panel)
 const statusEl = document.getElementById('status');
@@ -773,30 +836,43 @@ bodyNav.build(['Sun', ...EPHEMERIS.planets.map((p) => p.name)]);
 // Texture loader
 // Maps load async — bodies keep their base colour until the image arrives, and a
 // failed load degrades to that flat colour instead of going blank.
-const TEX_CDN = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/textures/planets/';   // three.js r128 maps (Earth + Moon only), via jsdelivr with CORS
-const PLANET_CDN = 'https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets@master/images/';   // planetpixelemporium maps for every other body
+// Colour maps are tagged sRGB so the filmic pipeline decodes them correctly;
+// data maps (bump / normal / specular) stay linear.
+const TEX_CDN = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/textures/planets/';   // three.js r128 maps (Earth + Moon), via jsdelivr with CORS
+const PLANET_CDN = 'https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets@master/images/';   // planetpixelemporium 1k maps — kept for bump/relief data
+// solarsystemscope.com 2k photo maps (CC BY 4.0, NASA imagery), mirrored on GitHub
+// and served via jsdelivr for CORS; pinned to a commit so the URLs never move.
+const HQ_CDN = 'https://cdn.jsdelivr.net/gh/igorSzymczak/AF2-Client@619675d6d7800984955184273c1ac771bcedae35/assets/structures/planets/';
 const _texLoader = new THREE.TextureLoader();
 const _maxAniso  = renderer.capabilities.getMaxAnisotropy();
-function loadTexture(file) {
-  return _texLoader.load(
-    TEX_CDN + file,
-    (tex) => { tex.anisotropy = _maxAniso; },
+function loadTexture(file, { srgb = true, cdn = TEX_CDN } = {}) {
+  const tex = _texLoader.load(
+    cdn + file,
+    (t) => { t.anisotropy = _maxAniso; },
     undefined,
     () => console.warn('texture failed, using flat colour:', file)
   );
+  if (srgb) tex.encoding = THREE.sRGBEncoding;
+  return tex;
 }
 
 // Upgrade a material to a real photo map *after* it loads, leaving whatever map it
 // already has (a procedural CanvasTexture, or a flat colour) visible until then. A
 // failed load is a no-op, so bodies never go blank — same graceful path as Earth.
-function swapInPhoto(material, file, opts = {}) {
-  if (!file) return;
-  _texLoader.load(PLANET_CDN + file,
-    (tex) => { tex.anisotropy = _maxAniso; material.map = tex; material.needsUpdate = true; },
+// `url` and `opts.bump` are full URLs (the 2k colour maps and the 1k bump maps
+// live on different CDNs).
+function swapInPhoto(material, url, opts = {}) {
+  if (!url) return;
+  _texLoader.load(url,
+    (tex) => {
+      tex.anisotropy = _maxAniso;
+      tex.encoding = THREE.sRGBEncoding;
+      material.map = tex; material.needsUpdate = true;
+    },
     undefined,
-    () => console.warn('photo texture failed, keeping fallback:', file));
+    () => console.warn('photo texture failed, keeping fallback:', url));
   if (opts.bump) {
-    _texLoader.load(PLANET_CDN + opts.bump,
+    _texLoader.load(opts.bump,
       (tex) => {
         tex.anisotropy = _maxAniso;
         material.bumpMap = tex; material.bumpScale = opts.bumpScale ?? 0.05;
@@ -807,11 +883,15 @@ function swapInPhoto(material, file, opts = {}) {
 }
 const EARTH_TEX = {
   map:      loadTexture('earth_atmos_2048.jpg'),
-  specular: loadTexture('earth_specular_2048.jpg'),
-  normal:   loadTexture('earth_normal_2048.jpg'),
-  clouds:   loadTexture('earth_clouds_1024.png'),
+  specular: loadTexture('earth_specular_2048.jpg', { srgb: false }),
+  normal:   loadTexture('earth_normal_2048.jpg',   { srgb: false }),
+  clouds:   loadTexture('earth_clouds_2048.png'),
+  lights:   loadTexture('earth_lights_2048.png'),   // night-side city lights (emissive)
 };
-const MOON_TEX = { map: loadTexture('moon_1024.jpg') };
+const MOON_TEX = {
+  map:  loadTexture('moon_1024.jpg'),
+  bump: loadTexture('moonbump1k.jpg', { srgb: false, cdn: PLANET_CDN }),
+};
 
 // Procedural planet textures (canvas → CanvasTexture)
 // The CDN only ships Earth + Moon maps, so the remaining bodies are painted:
@@ -823,6 +903,7 @@ function _canvasTex(draw, w = 1024, h = 512) {
   draw(c.getContext('2d'), w, h);
   const t = new THREE.CanvasTexture(c);
   t.anisotropy = _maxAniso;
+  t.encoding = THREE.sRGBEncoding;   // painted in sRGB, like any photo
   return t;
 }
 
@@ -914,45 +995,103 @@ function makeVenusTexture() {
   });
 }
 
-// The Sun's photosphere: a fiery convection field — overlapping radial-gradient
-// granules (hot white-yellow cores fading into dark red), a few cooler sunspots,
-// and bright plasma flecks. Random each call, so two instances differ slightly.
-function makeSunTexture() {
-  return _canvasTex((x, w, h) => {
-    x.fillStyle = '#9c2c06'; x.fillRect(0, 0, w, h);
-    // granulation cells — hot centre → transparent dark-red edge
-    const hot = ['#fff4cc', '#ffe07a', '#ffab2e', '#f1690f'];
-    for (let i = 0; i < 1500; i++) {
-      const cx = Math.random() * w, cy = Math.random() * h, r = 7 + Math.random() * 40;
-      const g = x.createRadialGradient(cx, cy, 0, cx, cy, r);
-      g.addColorStop(0, hot[i % hot.length]);
-      g.addColorStop(1, 'rgba(120,30,5,0)');
-      x.fillStyle = g;
-      x.beginPath(); x.arc(cx, cy, r, 0, 7); x.fill();
-    }
-    // sunspots — cooler dark patches with a soft penumbra
-    for (let i = 0; i < 14; i++) {
-      const cx = Math.random() * w, cy = Math.random() * h, r = 14 + Math.random() * 42;
-      const g = x.createRadialGradient(cx, cy, 0, cx, cy, r);
-      g.addColorStop(0, 'rgba(55,10,0,0.85)');
-      g.addColorStop(0.6, 'rgba(120,30,5,0.45)');
-      g.addColorStop(1, 'rgba(120,30,5,0)');
-      x.fillStyle = g;
-      x.beginPath(); x.arc(cx, cy, r, 0, 7); x.fill();
-    }
-    // bright plasma flecks
-    x.globalAlpha = 0.5;
-    for (let i = 0; i < 220; i++) {
-      x.fillStyle = Math.random() < 0.5 ? '#fff6d8' : '#ffe49a';
-      x.beginPath();
-      x.arc(Math.random() * w, Math.random() * h, 1 + Math.random() * 3, 0, 7);
-      x.fill();
-    }
-    x.globalAlpha = 1;
-  }, 1024, 1024);
+// The Sun's photosphere: a live ShaderMaterial. The real SDO-style photo map is
+// double-sampled through domain-warped, counter-drifting UVs so the plasma visibly
+// churns; fbm granulation shimmers on top; limb darkening + a hot chromosphere rim
+// shape the disc. Until (or if) the photo loads, a purely procedural fbm
+// granulation field renders instead, so the Sun never appears untextured.
+const SUN_GLSL_NOISE = `
+  float hash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+  float noise(vec3 x) {
+    vec3 i = floor(x), f = fract(x);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(mix(hash(i + vec3(0,0,0)), hash(i + vec3(1,0,0)), f.x),
+                   mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
+               mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x),
+                   mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y), f.z);
+  }
+  float fbm(vec3 p) {
+    float v = 0.0, a = 0.5;
+    for (int i = 0; i < 4; i++) { v += a * noise(p); p *= 2.13; a *= 0.5; }
+    return v;
+  }
+`;
+function makeSunMaterial() {
+  const mat = new THREE.ShaderMaterial({
+    uniforms: {
+      uTime:   { value: 0 },
+      uMap:    { value: null },
+      uHasMap: { value: 0 },
+    },
+    vertexShader: `
+      varying vec2 vUv; varying float vMu;
+      void main() {
+        vUv = uv;
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vec3 n = normalize(normalMatrix * normal);
+        vMu = dot(n, normalize(-mv.xyz));
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: SUN_GLSL_NOISE + `
+      uniform float uTime; uniform sampler2D uMap; uniform float uHasMap;
+      varying vec2 vUv; varying float vMu;
+      void main() {
+        float t = uTime;
+        // domain-warped UVs: plasma churns instead of sliding rigidly
+        vec2 warp = vec2(
+          fbm(vec3(vUv * 7.0, t * 0.10)),
+          fbm(vec3(vUv * 7.0 + 19.7, t * 0.10 + 5.0))
+        ) - 0.5;
+        vec3 base;
+        if (uHasMap > 0.5) {
+          vec3 s1 = texture2D(uMap, vUv + warp * 0.025 + vec2(t * 0.004, 0.0)).rgb;
+          vec3 s2 = texture2D(uMap, vUv - warp * 0.020 - vec2(t * 0.003, 0.0)).rgb;
+          base = max(s1, s2);
+          base *= base * 1.6 + 0.4;          // sRGB-ish decode + heat boost
+        } else {
+          // procedural fallback: granulation ramped deep-red → white-hot
+          float g = fbm(vec3(vUv * 16.0, t * 0.22));
+          base = mix(vec3(0.55, 0.08, 0.0), vec3(1.0, 0.62, 0.18), smoothstep(0.25, 0.75, g));
+          base = mix(base, vec3(1.0, 0.94, 0.75), smoothstep(0.72, 0.95, g));
+          base *= 1.2;
+        }
+        // fine granulation shimmer
+        base *= 0.86 + 0.4 * fbm(vec3(vUv * 38.0, t * 0.45));
+        // limb darkening + a hot chromosphere rim right at the edge
+        float mu = clamp(abs(vMu), 0.0, 1.0);
+        base *= 0.42 + 0.62 * pow(mu, 0.55);
+        base += vec3(1.0, 0.45, 0.14) * pow(1.0 - mu, 3.5) * 0.9;
+        gl_FragColor = vec4(base * 1.25, 1.0);
+      }`,
+  });
+  _texLoader.load(HQ_CDN + '2k_sun.jpg', (tex) => {
+    tex.anisotropy = _maxAniso;
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;   // warped samples wrap the seam
+    mat.uniforms.uMap.value = tex;
+    mat.uniforms.uHasMap.value = 1;
+  }, undefined, () => {});   // failed load → the procedural branch keeps rendering
+  return mat;
 }
-const SUN_TEX       = makeSunTexture();
-const SUN_TEX_CHURN = makeSunTexture();
+
+// Big soft corona halo billboard, occluded by the disc itself — the wide warm
+// glow that photographs of the Sun always carry.
+function makeSunHalo(radius) {
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const x = c.getContext('2d');
+  const g = x.createRadialGradient(128, 128, 24, 128, 128, 128);
+  g.addColorStop(0.0,  'rgba(255,235,190,0.70)');
+  g.addColorStop(0.22, 'rgba(255,170,70,0.30)');
+  g.addColorStop(0.55, 'rgba(255,90,15,0.09)');
+  g.addColorStop(1.0,  'rgba(255,60,0,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 256, 256);
+  const tex = new THREE.CanvasTexture(c);
+  tex.encoding = THREE.sRGBEncoding;
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: tex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true,
+  }));
+  halo.scale.setScalar(radius * 7.5);
+  return halo;
+}
 
 // Painted maps + atmosphere tints, keyed by planet name (Earth/Moon use the CDN).
 const PLANET_TEX = {
@@ -970,29 +1109,33 @@ const ATMO = {
 };
 
 // Real photo maps swapped in over the procedural PLANET_TEX once they load (see
-// swapInPhoto). Rocky worlds also get a bump map for genuine surface relief, the
-// same way Earth uses its normal map. Earth keeps its own dedicated EARTH_TEX set.
+// swapInPhoto): 2k solarsystemscope colour maps, with 1k planetpixelemporium bump
+// maps layered on the rocky worlds for genuine surface relief. Venus shows its
+// sulphuric cloud deck (what the planet actually looks like from space), so no
+// surface bump there. Earth keeps its own dedicated EARTH_TEX set.
 const PLANET_PHOTO = {
-  Mercury: { map: 'mercurymap.jpg', bump: 'mercurybump.jpg', bumpScale: 0.04 },
-  Venus:   { map: 'venusmap.jpg',   bump: 'venusbump.jpg',   bumpScale: 0.05 },
-  Mars:    { map: 'marsmap1k.jpg',  bump: 'marsbump1k.jpg',  bumpScale: 0.09 },
-  Jupiter: { map: 'jupitermap.jpg' },
-  Saturn:  { map: 'saturnmap.jpg' },
-  Uranus:  { map: 'uranusmap.jpg' },
-  Neptune: { map: 'neptunemap.jpg' },
+  Mercury: { map: HQ_CDN + '2k_mercury.jpg', bump: PLANET_CDN + 'mercurybump.jpg', bumpScale: 0.04 },
+  Venus:   { map: HQ_CDN + '2k_venus_atmosphere.jpg' },
+  Mars:    { map: HQ_CDN + '2k_mars.jpg',    bump: PLANET_CDN + 'marsbump1k.jpg',  bumpScale: 0.08 },
+  Jupiter: { map: HQ_CDN + '2k_jupiter.jpg' },
+  Saturn:  { map: HQ_CDN + '2k_saturn.jpg' },
+  Uranus:  { map: HQ_CDN + '2k_uranus.jpg' },
+  Neptune: { map: HQ_CDN + '2k_neptune.jpg' },
 };
 
 // Reusable mesh builders
+// Planets are PBR (MeshStandardMaterial): matte regolith for rocky worlds,
+// slightly smoother cloud decks for the giants — no plastic Phong highlights.
 function makeBody(radius, color, opts = {}) {
   return new THREE.Mesh(
-    new THREE.SphereGeometry(radius, 48, 48),
-    new THREE.MeshPhongMaterial({
+    new THREE.SphereGeometry(radius, 64, 64),
+    new THREE.MeshStandardMaterial({
       color,
-      map:         opts.map         ?? null,
-      specularMap: opts.specularMap ?? null,
-      normalMap:   opts.normalMap   ?? null,
-      shininess:   opts.shininess ?? 12,
-      specular:    opts.specular  ?? 0x222222,
+      map:       opts.map      ?? null,
+      bumpMap:   opts.bumpMap  ?? null,
+      bumpScale: opts.bumpScale ?? 0.02,
+      roughness: opts.roughness ?? 0.95,
+      metalness: 0,
     })
   );
 }
@@ -1004,33 +1147,68 @@ function makeGlow(radius, color, opacity, blending = THREE.NormalBlending) {
   );
 }
 
-// Self-luminous star: photosphere map (procedural fallback), a counter-rotating
-// additive shell for churning plasma, layered corona shells (white-hot → orange →
-// red), and erupting limb prominences. userData exposes { core, churn, corona,
-// flares } for animateSun().
+// Fresnel atmosphere: a limb glow that brightens at the silhouette (inner shell,
+// FrontSide) plus a halo that hugs the disc and decays outward (outer shell,
+// BackSide) — how an atmosphere actually scatters, unlike a flat-alpha sphere.
+function _fresnelShell(radius, color, { side, power, intensity, edge }) {
+  return new THREE.Mesh(
+    new THREE.SphereGeometry(radius, 48, 48),
+    new THREE.ShaderMaterial({
+      uniforms: {
+        uColor:     { value: new THREE.Color(color) },
+        uPower:     { value: power },
+        uIntensity: { value: intensity },
+      },
+      vertexShader: `
+        varying float vMu;
+        void main() {
+          vec4 mv = modelViewMatrix * vec4(position, 1.0);
+          vec3 n = normalize(normalMatrix * normal);
+          vMu = abs(dot(n, normalize(-mv.xyz)));
+          gl_Position = projectionMatrix * mv;
+        }`,
+      fragmentShader: `
+        uniform vec3 uColor; uniform float uPower; uniform float uIntensity;
+        varying float vMu;
+        void main() {
+          float mu = clamp(vMu, 0.0, 1.0);
+          float a = pow(${edge ? '1.0 - mu' : 'mu'}, uPower) * uIntensity;
+          gl_FragColor = vec4(uColor * a, a);
+        }`,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      side,
+      depthWrite: false,
+    })
+  );
+}
+function makeAtmosphere(radius, color, { thickness = 1.18, intensity = 1.0 } = {}) {
+  const group = new THREE.Group();
+  group.add(_fresnelShell(radius * 1.012, color, {
+    side: THREE.FrontSide, power: 3.4, intensity: 0.9 * intensity, edge: true,    // limb rim
+  }));
+  group.add(_fresnelShell(radius * thickness, color, {
+    side: THREE.BackSide, power: 2.6, intensity: 0.5 * intensity, edge: false,    // outer halo
+  }));
+  return group;
+}
+
+// Self-luminous star: live shader photosphere (see makeSunMaterial), a big soft
+// halo billboard, layered corona shells (white-hot → orange → red), and erupting
+// limb prominences. userData exposes { core, mat, corona, flares } for animateSun().
 function makeSun(radius) {
   const group = new THREE.Group();
 
-  const core = new THREE.Mesh(
-    new THREE.SphereGeometry(radius, 64, 64),
-    new THREE.MeshBasicMaterial({ map: SUN_TEX, color: 0xffffff })
-  );
-  swapInPhoto(core.material, 'sunmap.jpg');   // real photosphere over the procedural one
+  const mat = makeSunMaterial();
+  const core = new THREE.Mesh(new THREE.SphereGeometry(radius, 96, 96), mat);
   group.add(core);
 
-  const churn = new THREE.Mesh(
-    new THREE.SphereGeometry(radius * 1.015, 64, 64),
-    new THREE.MeshBasicMaterial({
-      map: SUN_TEX_CHURN, color: 0xffd28a, transparent: true, opacity: 0.5,
-      blending: THREE.AdditiveBlending, depthWrite: false,
-    })
-  );
-  group.add(churn);
+  group.add(makeSunHalo(radius));
 
   const corona = [
-    makeGlow(radius * 1.22, 0xfff0b0, 0.40, THREE.AdditiveBlending),
-    makeGlow(radius * 1.6,  0xff8a1e, 0.22, THREE.AdditiveBlending),
-    makeGlow(radius * 2.2,  0xff3c00, 0.10, THREE.AdditiveBlending),
+    makeGlow(radius * 1.18, 0xffe8b0, 0.30, THREE.AdditiveBlending),
+    makeGlow(radius * 1.5,  0xff8a1e, 0.16, THREE.AdditiveBlending),
+    makeGlow(radius * 2.1,  0xff3c00, 0.07, THREE.AdditiveBlending),
   ];
   corona.forEach((c) => { c.userData.baseOpacity = c.material.opacity; group.add(c); });
 
@@ -1059,17 +1237,16 @@ function makeSun(radius) {
     flares.push(mesh);
   }
 
-  group.userData = { core, churn, corona, flares };
+  group.userData = { core, mat, corona, flares };
   return group;
 }
 
-// Per-frame fiery motion: churn shell counter-rotates and gently wobbles, corona
-// shells softly pulse, and each prominence flickers + rides a slow eruption
-// envelope. Core spin is left to each view's update.
+// Per-frame fiery motion: the photosphere shader churns (uTime), corona shells
+// softly pulse, and each prominence flickers + rides a slow eruption envelope.
+// Core spin is left to each view's update.
 function animateSun(sunGroup, dt, speed, t) {
   const ud = sunGroup.userData, s = Math.max(speed, 0.1);
-  ud.churn.rotation.y -= 0.11 * s * dt;
-  ud.churn.rotation.x  = Math.sin(t * 0.25) * 0.04;
+  ud.mat.uniforms.uTime.value += dt * (0.5 + 0.5 * Math.min(s, 4));
   ud.corona.forEach((c, i) => {
     const k = 0.85 + 0.15 * Math.sin(t * (1.4 + i * 0.5) + i * 2);
     c.material.opacity = c.userData.baseOpacity * k;
@@ -1131,7 +1308,13 @@ function makeSaturnRings(planetR) {
   const ring = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
     map: makeRingTexture(), side: THREE.DoubleSide, transparent: true, depthWrite: false,
   }));
-  swapInPhoto(ring.material, 'saturnringcolor.jpg');   // real ring colour over the procedural strip
+  // Real 2k ring scan (colour + per-ringlet alpha) over the procedural strip.
+  _texLoader.load(HQ_CDN + '2k_saturn_ring_alpha.png', (tex) => {
+    tex.anisotropy = _maxAniso;
+    tex.encoding = THREE.sRGBEncoding;
+    ring.material.map = tex;
+    ring.material.needsUpdate = true;
+  }, undefined, () => {});
   const group = new THREE.Group();
   group.add(ring);
   group.rotation.x = Math.PI / 2;   // lay flat in XZ plane
@@ -1140,24 +1323,30 @@ function makeSaturnRings(planetR) {
 }
 
 // Textured Earth: continents/oceans (map), glossy seas only (specularMap),
-// surface relief (normalMap), a drifting cloud shell, and atmosphere glow.
+// surface relief (normalMap), night-side city lights (emissiveMap), a drifting
+// cloud shell, and a fresnel atmosphere. Earth keeps Phong — its specular map
+// is what makes only the oceans catch sunlight.
 // Tilted 23.4°; `userData.surface` / `userData.clouds` let views spin each.
 function makeEarth(radius, { clouds = true } = {}) {
   const group = new THREE.Group();
   group.rotation.z = 0.41;   // 23.4° axial tilt
 
-  const surface = makeBody(radius, 0xffffff, {
-    map: EARTH_TEX.map, specularMap: EARTH_TEX.specular, normalMap: EARTH_TEX.normal,
-    shininess: 22, specular: 0x556677,
-  });
+  const surface = new THREE.Mesh(
+    new THREE.SphereGeometry(radius, 64, 64),
+    new THREE.MeshPhongMaterial({
+      map: EARTH_TEX.map, specularMap: EARTH_TEX.specular, normalMap: EARTH_TEX.normal,
+      shininess: 24, specular: 0x445566,
+      emissive: 0xffffff, emissiveMap: EARTH_TEX.lights, emissiveIntensity: 1.15,
+    })
+  );
   group.add(surface);
-  group.add(makeGlow(radius * 1.12, 0x4a90d0, 0.18));
+  group.add(makeAtmosphere(radius, 0x5a9fe0));
 
   let cloudMesh = null;
   if (clouds) {
     cloudMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(radius * 1.02, 48, 48),
-      new THREE.MeshPhongMaterial({ map: EARTH_TEX.clouds, transparent: true, opacity: 0.5, depthWrite: false })
+      new THREE.SphereGeometry(radius * 1.018, 64, 64),
+      new THREE.MeshPhongMaterial({ map: EARTH_TEX.clouds, transparent: true, opacity: 0.55, depthWrite: false })
     );
     group.add(cloudMesh);
   }
@@ -1480,7 +1669,9 @@ class SolarView extends View {
     this.focusByNameMap = {}; // name → focus info, for the top-right picker box
   }
   build() {
-    this.root.add(new THREE.PointLight(0xfff4cc, 2.6, 6000, 1.0));
+    // Intensity sits just under the bloom threshold for the brightest albedo
+    // (Uranus) — any hotter and whole planet discs start to bloom blockily.
+    this.root.add(new THREE.PointLight(0xfff4cc, 2.1, 6000, 1.0));
 
     const SUN_R = 14;
     this.sunGroup = makeSun(SUN_R);
@@ -1497,15 +1688,14 @@ class SolarView extends View {
 
       const gas = d.kind === 'gas';
       const mesh = d.name === 'Earth'
-        ? makeBody(d.radius, 0xffffff, {
-            map: EARTH_TEX.map, specularMap: EARTH_TEX.specular, normalMap: EARTH_TEX.normal,
-            shininess: 22, specular: 0x556677,
-          })
+        ? makeEarth(d.radius)   // full Earth — oceans, night lights, clouds, atmosphere
         : makeBody(d.radius, 0xffffff, {
-            map: PLANET_TEX[d.name], shininess: gas ? 30 : 6, specular: gas ? 0x201810 : 0x0a0a0a,
+            map: PLANET_TEX[d.name], roughness: gas ? 0.82 : 1.0,
           });
       if (d.name !== 'Earth' && PLANET_PHOTO[d.name]) swapInPhoto(mesh.material, PLANET_PHOTO[d.name].map, PLANET_PHOTO[d.name]);
-      if (ATMO[d.name]) mesh.add(makeGlow(d.radius * (gas ? 1.10 : 1.06), ATMO[d.name], gas ? 0.16 : 0.12));
+      if (ATMO[d.name]) mesh.add(makeAtmosphere(d.radius, ATMO[d.name], {
+        thickness: gas ? 1.14 : 1.10, intensity: gas ? 0.7 : 0.55,
+      }));
       mesh.position.x = orbitR;
       if (d.rings) mesh.add(makeSaturnRings(d.radius));
 
@@ -1543,14 +1733,25 @@ class SolarView extends View {
     if (info) this.focusOn(info);
   }
 
-  // Click-to-focus: frame one body for a slow turntable close-up
+  // Click-to-focus: frame one body for a slow turntable close-up.
+  // Planets are framed from their sunlit side (the Sun sits at the origin), so
+  // the close-up shows a ¾-lit face instead of a backlit silhouette.
   focusOn(info) {
     this.focused = info;
     this.labels.setVisible(false);   // declutter — the panel names the body
     bodyNav.setActive(info.name);    // light up the matching picker entry
 
     const target = info.mesh.getWorldPosition(new THREE.Vector3());
-    const dir = new THREE.Vector3(0.6, 0.35, 1).normalize();
+    let dir;
+    if (info.name === 'Sun') {
+      dir = new THREE.Vector3(0.6, 0.35, 1).normalize();
+    } else {
+      const toSun = target.clone().multiplyScalar(-1).normalize();        // body → Sun
+      const side  = new THREE.Vector3().crossVectors(toSun, _YAXIS).normalize();
+      dir = toSun.multiplyScalar(1).addScaledVector(side, 0.55);          // swing off-axis
+      dir.y += 0.35;
+      dir.normalize();
+    }
     const dist = info.radius * 5 + 12;
     const pos = target.clone().add(dir.multiplyScalar(dist));
     manager.focusCamera(pos, target, info.radius * 2, info.radius * 40);
@@ -1605,32 +1806,35 @@ class EarthMoonView extends View {
       { title: 'Liftoff', sub: 'Super Heavy ascent', dur: 5,
         dv: 'Booster Δv ≈ 2.4 km/s',
         detail: 'Stacked Starship lifts off and Super Heavy boosts it toward a low-Earth parking orbit before separating to fly back to the launch site.',
-        cam: (v) => trackCam(() => v.shipWorld(), 14, 9, 24, 7, 0.6) },
+        cam: (v) => trackCam(() => v.shipWorld(), 22, 7, 6, 0.5) },
       { title: 'Parking Orbit', sub: '~200 km low Earth orbit', dur: 4,
         detail: 'Starship circularises in low Earth orbit and coasts, waiting for the propellant tankers to rendezvous.',
-        cam: (v) => trackCam(() => v.shipWorld(), 11, 7, 19, 6, 0.7) },
+        cam: (v) => trackCam(() => v.shipWorld(), 16, 5, 5, 0.6) },
       { title: 'Orbital Refueling', sub: 'Tanker rendezvous & transfer', dur: 6,
         dv: '≈ 1,200 t propellant',
         detail: 'A tanker docks and transfers propellant. Refilling in orbit is what gives Starship a full tank — and the Δv budget — for a high-energy departure. It is the keystone of the whole architecture.',
-        cam: (v) => trackCam(() => v.shipWorld(), 9, 4, 15, 5, 0.5) },
+        cam: (v) => trackCam(() => v.shipWorld(), 12, 3.5, 4, 0.5) },
       { title: 'Trans-Lunar Injection', sub: 'Departure burn', dur: 4,
         dv: 'Δv ≈ 3.1 km/s',
         detail: 'A single burn raises apogee out to the Moon’s distance, committing Starship to a trans-lunar trajectory.',
-        cam: (v) => trackCam(() => v.shipWorld(), 13, 8, 22, 7, 0.55) },
+        cam: (v) => trackCam(() => v.shipWorld(), 20, 6, 6, 0.5) },
       { title: 'Translunar Coast', sub: '~3-day cislunar cruise', dur: 5,
         detail: 'Engines off for a ballistic coast across cislunar space, climbing Earth’s gravity well toward the Moon.',
-        cam: (v) => trackCam(() => v.shipWorld(), 16, 11, 28, 8, 0.85) },
+        cam: (v) => trackCam(() => v.shipWorld(), 26, 8, 8, 0.8) },
       { title: 'Lunar Landing', sub: 'Powered descent', dur: 6,
         dv: 'Δv ≈ 2.5 km/s',
         detail: 'With no atmosphere to brake against, the descent is entirely propulsive — a final Raptor burn slows Starship to a soft touchdown on the surface.',
-        cam: (v) => trackCam(() => v.shipWorld(), 11, 6, 18, 5, 0.55) },
+        cam: (v) => trackCam(() => v.shipWorld(), 15, 4, 5, 0.5) },
     ];
   }
   deactivate() { super.deactivate(); this.director.reset(); }   // never leave a plan running across tabs
   build() {
-    const sun = new THREE.DirectionalLight(0xfff4e0, 2.0);
+    const sun = new THREE.DirectionalLight(0xfff4e0, 2.6);
     sun.position.set(1, 0.5, 0.7);
     this.root.add(sun);
+    const fill = new THREE.DirectionalLight(0x8899bb, 0.22);   // faint earthshine fill
+    fill.position.set(-1, -0.3, -0.7);
+    this.root.add(fill);
 
     const EARTH_R = 16;
     this.earthR = EARTH_R;
@@ -1642,7 +1846,7 @@ class EarthMoonView extends View {
     // Moon on a compressed orbit (~0.27× Earth size).
     this.moonOrbit = 92;
     this.root.add(makeOrbitRing(this.moonOrbit, 0x3a3a44, 0.55));
-    this.moon = makeBody(EARTH_R * 0.27, 0xffffff, { map: MOON_TEX.map, shininess: 4 });
+    this.moon = makeBody(EARTH_R * 0.27, 0xffffff, { map: MOON_TEX.map, bumpMap: MOON_TEX.bump, bumpScale: 0.05 });
     this.moon.position.x = this.moonOrbit;
     this.moonPivot = new THREE.Object3D();
     this.moonPivot.add(this.moon);
@@ -1738,6 +1942,9 @@ class EarthMoonView extends View {
     // The plan positions the ship/tanker in world space, so flatten their pivots.
     this.shipPivot.rotation.set(0, 0, 0);   this.shipPivot.position.set(0, 0, 0);
     this.tankerPivot.rotation.set(0, 0, 0); this.tankerPivot.position.set(0, 0, 0);
+    // Pre-place the ship on the pad so the chase camera's first frame is composed.
+    this.ship.position.copy(this._leoPoint(this._leoA, _v0).setLength(this.earthR * 1.01));
+    this._tankPark = null;              // tanker re-enters with the refuel phase
   }
   onPlanStop(restoreCam) {
     this.ship.scale.setScalar(1);
@@ -1779,29 +1986,27 @@ class EarthMoonView extends View {
       ship.lookAt(_v3); ship.rotateX(Math.PI / 2);
       this._parkA = a;
 
-    } else if (idx === 2) {             // Orbital refueling — tanker docks
+    } else if (idx === 2) {             // Orbital refueling — tanker closes along the ring
       const a = this._parkA;
       this._leoPoint(a, ship.position);
       this._leoPoint(a + 0.02, _v3);
       ship.lookAt(_v3); ship.rotateX(Math.PI / 2);
 
+      // The tanker trails on the same orbit and slides up belly-to-belly —
+      // a real rendezvous instead of materialising from below.
       this.tanker.visible = true;
       const dock = _easeInOut(Math.min(p * 1.6, 1));
-      const slot = this._leoPoint(a, _v0);
-      const start = _v1.copy(slot).multiplyScalar(0.8); start.y -= 9;
-      const docked = _v2.copy(slot).add(_v3.set(0, -3.2, 0));
-      this.tanker.position.copy(start).lerp(docked, dock);
+      this._leoPoint(a - 0.5 * (1 - dock), this.tanker.position);
+      this.tanker.position.y -= 3.2 + 4.5 * (1 - dock);
       this.tanker.rotation.copy(ship.rotation);
-      if (dock > 0.9) {
-        this.fuelLink.visible = true;
-        ship.getWorldPosition(_v0);
-        this.tanker.getWorldPosition(_v1);
-        this.fuelLink.position.copy(_v0).lerp(_v1, 0.5);
-        this.fuelLink.scale.y = _v0.distanceTo(_v1);
-        this.fuelLink.quaternion.setFromUnitVectors(_YAXIS, _v2.subVectors(_v1, _v0).normalize());
-      }
+      if (dock > 0.95) linkBetween(this.fuelLink, ship.position, this.tanker.position);
+      this._tankPark = (this._tankPark || new THREE.Vector3()).copy(this.tanker.position);
 
     } else if (idx === 3 || idx === 4) {   // TLI burn + translunar coast (one arc)
+      if (this._tankPark) {                // tanker stays parked where it undocked
+        this.tanker.visible = true;
+        this.tanker.position.copy(this._tankPark);
+      }
       const depart = this._leoPoint(this._parkA, _v0);
       const moon = this.moonWorld(_v1);
       const ctrl = _v2.copy(depart).add(moon).multiplyScalar(0.5); ctrl.y += 50;
@@ -1973,7 +2178,7 @@ class MarsView extends View {
     this.root.add(this.earth);
     this.labels.add(this.earth, 'Earth', { offset: 16 });
 
-    this.moon = makeBody(1.3, 0xffffff, { map: MOON_TEX.map, shininess: 4 });
+    this.moon = makeBody(1.3, 0xffffff, { map: MOON_TEX.map, bumpMap: MOON_TEX.bump, bumpScale: 0.04 });
     this.moon.position.x = 11;
     this.moonPivot = new THREE.Object3D();
     this.moonPivot.position.copy(this.earthPts[0]);
@@ -1982,9 +2187,9 @@ class MarsView extends View {
     this.labels.add(this.moon, 'Moon', { offset: 10, faint: true });
 
     // Mars starts well ahead of Earth — it'll be at the arrival point when the craft gets there.
-    this.mars = makeBody(3.5, 0xffffff, { map: PLANET_TEX.Mars, shininess: 6 });
+    this.mars = makeBody(3.5, 0xffffff, { map: PLANET_TEX.Mars });
     swapInPhoto(this.mars.material, PLANET_PHOTO.Mars.map, PLANET_PHOTO.Mars);
-    this.mars.add(makeGlow(3.5 * 1.06, ATMO.Mars, 0.10));   // thin reddish haze
+    this.mars.add(makeAtmosphere(3.5, ATMO.Mars, { thickness: 1.1, intensity: 0.45 }));   // thin reddish haze
     this.mars.position.copy(this.marsPts[0]);
     this.root.add(this.mars);
     this.labels.add(this.mars, 'Mars', { offset: 14 });
@@ -2276,16 +2481,21 @@ const manager = {
     this.ease = { fromPos: camera.position.clone(), toPos: pos.clone(),
                   fromTgt: controls.target.clone(), toTgt: target.clone(), t: 0, dur };
   },
-  // Close tracking shot for a Mission Plan phase: smoothly follow a moving subject
-  // (anchorFn → world position) held at a fixed offset. Re-framing between phases is
-  // continuous — we just swap the anchor/offset and let update() ease the camera over.
-  startChase({ track, offset, min, max, tau }) {
+  // Close tracking shot for a Mission Plan phase: trail a moving subject
+  // (anchorFn → world position) from behind its direction of travel. Re-framing
+  // between phases is continuous — the trail direction is seeded from the current
+  // camera pose and update() eases everything over.
+  startChase({ track, back, up, min, max, tau }) {
     controls.autoRotate = false;
     this._focusPending = false;
     this.ease = null;                        // a chase takes over from any glide
     if (min != null) controls.minDistance = min;
     if (max != null) controls.maxDistance = max;
-    this.chase = { anchor: track, offset, tau: tau || 0.65 };
+    const dir = track().clone().sub(camera.position);
+    dir.y *= 0.4;
+    if (dir.lengthSq() < 1e-6) dir.set(0, 0, -1);
+    this.chase = { anchor: track, back, up, tau: tau || 0.6,
+                   dir: dir.normalize(), prev: track().clone(), vel: new THREE.Vector3() };
   },
   stopChase() { this.chase = null; },
   // Ease back out to the view's default framing and stop the turntable.
@@ -2314,14 +2524,33 @@ const manager = {
         if (this._focusPending) { controls.autoRotate = true; controls.autoRotateSpeed = 0.8; this._focusPending = false; }
       }
     } else if (this.chase) {
-      // Follow the live subject at a fixed offset, easing both eye and target so the
-      // camera trails the spacecraft smoothly (frame-rate-independent smoothing).
+      // Trail the subject from behind its smoothed direction of travel — a real
+      // chase shot. The target tracks near-instantly (the ship stays centered);
+      // only the eye eases, with velocity feed-forward so the smoothing lag never
+      // lets a fast phase shrink the ship to a dot.
       const c = this.chase;
-      this._tgt.copy(c.anchor());
-      _chaseV.copy(this._tgt).add(c.offset);
-      const a = 1 - Math.exp(-dt / c.tau);
-      camera.position.lerp(_chaseV, a);
-      controls.target.lerp(this._tgt, a);
+      const anchor = c.anchor();
+      c.vel.subVectors(anchor, c.prev).divideScalar(Math.max(dt, 1e-4));
+      const jump = c.prev.distanceTo(anchor);
+      c.prev.copy(anchor);
+      if (jump > 60) {                       // subject teleported (replay): hard cut
+        c.vel.set(0, 0, 0);
+      } else if (c.vel.length() > 0.3) {
+        _chaseV.copy(c.vel);
+        _chaseV.y *= 0.4;                    // keep the shot low and lateral
+        if (_chaseV.lengthSq() > 1e-8)
+          c.dir.lerp(_chaseV.normalize(), 1 - Math.exp(-dt / 0.45)).normalize();
+      }
+      _chaseV.copy(anchor).addScaledVector(c.vel, c.tau * 0.85)
+             .addScaledVector(c.dir, -c.back);
+      _chaseV.y += c.up;
+      if (jump > 60) {
+        camera.position.copy(_chaseV);
+        controls.target.copy(anchor);
+      } else {
+        camera.position.lerp(_chaseV, 1 - Math.exp(-dt / c.tau));
+        controls.target.lerp(anchor, 1 - Math.exp(-dt / 0.12));
+      }
       camera.lookAt(controls.target);
     } else {
       controls.update();
