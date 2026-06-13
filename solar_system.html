@@ -74,10 +74,39 @@
     }
     .tab.active .key { opacity: 0.5; }
 
+    /* Branding (top-left, persistent) */
+    #branding {
+      position: absolute;
+      top: 16px; left: 18px;
+      padding: 12px 18px 11px;
+      border: 1px solid var(--hair);
+      border-radius: 13px;
+      background: var(--glass-soft);
+      backdrop-filter: var(--panel-blur);
+      box-shadow: var(--panel-shadow);
+      pointer-events: none;
+      z-index: 6;            /* above #hud (5), below #tabs (10) */
+    }
+    #branding .name {
+      display: block;
+      color: var(--ink);
+      font: 700 19px/1.1 var(--disp);
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+    }
+    #branding .powered {
+      display: block;
+      margin-top: 5px;
+      color: var(--ink-faint);
+      font: 500 9px var(--mono);
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+
     /* HUD (top-left, per-view) */
     #hud {
       position: absolute;
-      top: 16px; left: 18px;
+      top: 96px; left: 18px;
       max-width: 390px;
       padding: 14px 17px 13px;
       border: 1px solid var(--hair);
@@ -463,6 +492,11 @@
   <button class="tab" data-view="solar">Solar System<span class="key">2</span></button>
   <button class="tab" data-view="mars">Mars<span class="key">3</span></button>
 </nav>
+
+<header id="branding">
+  <span class="name">Vedra Research</span>
+  <span class="powered">Powered by Claude</span>
+</header>
 
 <div id="hud"></div>
 
