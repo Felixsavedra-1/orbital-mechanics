@@ -12,7 +12,14 @@ from calculations import (
     meters_to_km,
 )
 from constants import DATA_VALIDATION_DATE, EARTH_MASS, EARTH_RADIUS
-from data import CONCEPT_STATIONS, EARTH_ORBITS, ISS_TO_MOON_DISTANCE, PLANETS, TRANSFER_ORBITS
+from data import (
+    CONCEPT_STATIONS,
+    EARTH_ORBITS,
+    ISS_TO_MOON_DISTANCE,
+    PLANETS,
+    TRANSFER_ORBITS,
+    OrbitalBody,
+)
 
 LABEL_WIDTH = 36
 VALUE_WIDTH = 14
@@ -45,6 +52,13 @@ class MetricRecord:
     note: str = ""
 
 
+def _metric(section: str, label: str, value_num: float, unit: str,
+            decimals: int, note: str = "") -> MetricRecord:
+    """MetricRecord for a numeric value, formatted and rounded to `decimals` places."""
+    return MetricRecord(section, label, f"{value_num:.{decimals}f}",
+                        round(value_num, decimals), unit, note)
+
+
 _YEARS_THRESHOLD_DAYS = 365.25 * 2  # display in years for periods ≥ 2 Earth years
 
 
@@ -60,19 +74,13 @@ def _format_period(period_hours: float) -> tuple[str, str]:
     return f"{period_hours * 60:.0f}", "minutes"
 
 
-def _body_orbit_records(section: str, bodies) -> list[MetricRecord]:
+def _body_orbit_records(section: str, bodies: list[OrbitalBody]) -> list[MetricRecord]:
     """Build velocity + period MetricRecords for a list of orbital bodies."""
     records = []
     for body in bodies:
         velocity_km = calculate_orbital_velocity(body.orbital_radius_m, body.central_mass_kg)
-        records.append(MetricRecord(
-            section=section,
-            label=f"{body.name} orbital velocity",
-            value=f"{velocity_km:.2f}",
-            value_num=round(velocity_km, 2),
-            unit="km/s",
-            note=body.body_type,
-        ))
+        records.append(_metric(section, f"{body.name} orbital velocity", velocity_km,
+                               "km/s", 2, body.body_type))
 
         period_hours = calculate_orbital_period(body.orbital_radius_m, body.central_mass_kg)
         period_value, period_unit = _format_period(period_hours)
@@ -94,22 +102,9 @@ def _planet_velocity_records() -> list[MetricRecord]:
 def _earth_orbit_records() -> list[MetricRecord]:
     records = _body_orbit_records("earth", EARTH_ORBITS)
     iss_to_moon_km = meters_to_km(ISS_TO_MOON_DISTANCE)
-    records.append(MetricRecord(
-        section="earth",
-        label="ISS distance from Moon",
-        value=f"{iss_to_moon_km:.0f}",
-        value_num=round(iss_to_moon_km, 0),
-        unit="km",
-    ))
+    records.append(_metric("earth", "ISS distance from Moon", iss_to_moon_km, "km", 0))
     esc_km = calculate_escape_velocity(EARTH_RADIUS, EARTH_MASS)
-    records.append(MetricRecord(
-        section="earth",
-        label="Earth escape velocity",
-        value=f"{esc_km:.2f}",
-        value_num=round(esc_km, 2),
-        unit="km/s",
-        note="From surface",
-    ))
+    records.append(_metric("earth", "Earth escape velocity", esc_km, "km/s", 2, "From surface"))
     return records
 
 
@@ -117,14 +112,8 @@ def _concept_station_records() -> list[MetricRecord]:
     records = []
     for station in CONCEPT_STATIONS:
         midpoint_km = meters_to_km(station.distance_m)
-        records.append(MetricRecord(
-            section="concepts",
-            label=f"Concept station {station.name}",
-            value=f"{midpoint_km:.0f}",
-            value_num=round(midpoint_km, 0),
-            unit="km",
-            note=station.note,
-        ))
+        records.append(_metric("concepts", f"Concept station {station.name}",
+                               midpoint_km, "km", 0, station.note))
     return records
 
 
@@ -150,30 +139,12 @@ def _transfer_records() -> list[MetricRecord]:
             transfer.r1_m, transfer.r2_m, transfer.central_mass_kg
         )
         total = dv1 + dv2
-        records.append(MetricRecord(
-            section="transfers",
-            label=f"{transfer.name} departure Δv",
-            value=f"{dv1:.2f}",
-            value_num=round(dv1, 2),
-            unit="km/s",
-            note=transfer.note,
-        ))
-        records.append(MetricRecord(
-            section="transfers",
-            label=f"{transfer.name} arrival Δv",
-            value=f"{dv2:.2f}",
-            value_num=round(dv2, 2),
-            unit="km/s",
-            note=transfer.note,
-        ))
-        records.append(MetricRecord(
-            section="transfers",
-            label=f"{transfer.name} total Δv",
-            value=f"{total:.2f}",
-            value_num=round(total, 2),
-            unit="km/s",
-            note=transfer.note,
-        ))
+        records.append(_metric("transfers", f"{transfer.name} departure Δv", dv1,
+                               "km/s", 2, transfer.note))
+        records.append(_metric("transfers", f"{transfer.name} arrival Δv", dv2,
+                               "km/s", 2, transfer.note))
+        records.append(_metric("transfers", f"{transfer.name} total Δv", total,
+                               "km/s", 2, transfer.note))
     return records
 
 
