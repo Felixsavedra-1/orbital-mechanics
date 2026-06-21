@@ -4,8 +4,8 @@ const Jimp = require('jimp');
 const fs = require('fs');
 const path = require('path');
 
-const WIDTH = 1000;
-const HEIGHT = 560;
+const WIDTH = 1200;
+const HEIGHT = 502;             // 1200x502 = 2.39:1 anamorphic "Scope" — cinematic widescreen
 const FRAME_DELAY = 60;         // ms between frames (~16.7 fps; quantizes to 6 cs in the GIF)
 
 async function main() {
