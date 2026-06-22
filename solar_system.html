@@ -34,76 +34,63 @@
     body { background: #000; overflow: hidden; color: var(--ink); }
     canvas { display: block; }
 
-    /* Top tab bar */
-    #tabs {
+    /* Shared house header — matches the Vedra Research portfolio top bar.
+       Wordmark hard-left, VR-03 orbit visual dead-center, view tabs hard-right. */
+    #topbar {
       position: absolute;
-      top: 16px; left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      gap: 5px;
-      padding: 5px;
-      border: 1px solid var(--hair);
-      border-radius: 999px;
-      background: var(--glass);
-      backdrop-filter: var(--panel-blur);
-      box-shadow: var(--panel-shadow);
-      z-index: 10;
+      top: 0; left: 0; right: 0;
+      height: 58px;
+      z-index: 20;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;   /* true-centers the middle cell */
+      align-items: center;
+      padding: 0 20px;
+      background: rgba(10, 10, 11, 0.74);     /* portfolio bar bg */
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid #26262B;       /* portfolio --line */
+      pointer-events: none;                   /* scene stays draggable under the bar */
     }
-    .tab {
+    #topbar .mark {                           /* portfolio .mark, exact */
+      justify-self: start;
+      font: 0.86rem/1 var(--mono);
+      letter-spacing: 0.14em;
+      color: #E8E3D6;                         /* portfolio bone */
+    }
+    #topbar .brand-orbit {                    /* VR-03, centered focal element */
+      justify-self: center;
+      width: 72px;
+      height: 46px;                           /* 46 + 2×1px border = 48px, fits the 58px bar; keeps ~1.6 aspect */
+      opacity: 0.95;
+      border: 1px solid #26262B;
+      border-radius: 2px;
+      background: linear-gradient(180deg, #111113, #0A0A0B);
+    }
+    #tabs {
+      justify-self: end;
+      display: flex;
+      gap: 1.8rem;
+      pointer-events: auto;
+    }
+    .tab {                                    /* portfolio nav.links a, exact */
       appearance: none;
       border: 0;
       background: transparent;
-      color: var(--ink-dim);
-      font: 600 14px/1 var(--disp);
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      padding: 9px 22px 8px;
-      border-radius: 999px;
       cursor: pointer;
-      transition: color 0.25s, background 0.25s;
+      font: 0.74rem/1 var(--mono);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #8C8C93;                         /* portfolio --grey */
+      padding: 0;
+      transition: color 0.2s ease;
     }
-    .tab:hover { color: var(--ink); background: rgba(238, 232, 218, 0.07); }
-    .tab.active {
-      color: #0a0c12;
-      background: rgba(238, 232, 218, 0.96);
-    }
-    .tab .key {
-      opacity: 0.45;
-      font: 10px var(--mono);
-      margin-left: 8px;
-    }
-    .tab.active .key { opacity: 0.5; }
-
-    /* Branding (top-left, persistent) */
-    #branding {
-      position: absolute;
-      top: 16px; left: 18px;
-      padding: 12px 18px 11px;
-      border: 1px solid var(--hair);
-      border-radius: 13px;
-      background: var(--glass-soft);
-      backdrop-filter: var(--panel-blur);
-      box-shadow: var(--panel-shadow);
-      pointer-events: none;
-      z-index: 6;            /* above #hud (5), below #tabs (10) */
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    #branding .name {
+    .tab:hover { color: #E8E3D6; }
+    .tab.active { color: #E8E3D6; }           /* selected = bone + thin gold underline */
+    .tab.active::after {
+      content: "";
       display: block;
-      color: var(--ink);
-      font: 700 19px/1.1 var(--disp);
-      letter-spacing: 0.04em;
-    }
-    #branding .brand-orbit {       /* VR-03 portfolio visual, scaled down */
-      width: 56px;
-      height: 35px;                /* 256:160 → 1.6 aspect ratio */
-      flex: none;
-      opacity: 0.95;
-      border: 1px solid var(--hair);
-      border-radius: 3px;
-      background: linear-gradient(180deg, rgba(238,232,218,0.04), rgba(0,0,0,0.25));
+      height: 1px;
+      margin-top: 5px;
+      background: #C6A15B;                     /* portfolio --gold */
     }
 
     /* HUD (top-left, per-view) */
@@ -151,9 +138,10 @@
       z-index: 5;
     }
     #speedVal { color: var(--ink); font-variant-numeric: tabular-nums; min-width: 48px; text-align: right; }
+    #controls .ctl-sep { width: 1px; height: 18px; background: var(--hair); }
     input[type=range] {
       -webkit-appearance: none;
-      width: 210px; height: 3px;
+      width: 150px; height: 3px;
       background: rgba(157, 163, 168, 0.45);
       border-radius: 2px;
       outline: none;
@@ -490,15 +478,14 @@
 </head>
 <body>
 
-<nav id="tabs">
-  <button class="tab" data-view="moon">Moon<span class="key">1</span></button>
-  <button class="tab" data-view="solar">Solar System<span class="key">2</span></button>
-  <button class="tab" data-view="mars">Mars<span class="key">3</span></button>
-</nav>
-
-<header id="branding">
-  <span class="name">Vedra Research</span>
+<header id="topbar">
+  <span class="mark">Vedra Research</span>
   <canvas class="brand-orbit" data-scene="orbit" width="128" height="80" aria-hidden="true"></canvas>
+  <nav id="tabs">
+    <button class="tab" data-view="moon">Moon</button>
+    <button class="tab" data-view="solar">Solar System</button>
+    <button class="tab" data-view="mars">Mars</button>
+  </nav>
 </header>
 
 <div id="hud"></div>
@@ -511,6 +498,9 @@
   <span>SPEED</span>
   <input type="range" id="speed" min="0" max="6" step="0.05" value="1">
   <span id="speedVal">1.00×</span>
+  <span class="ctl-sep"></span>
+  <span>ZOOM</span>
+  <input type="range" id="zoom" min="0" max="1" step="0.002" value="0.5">
 </div>
 
 <button id="mission-cta"><span class="glyph">▶</span><span class="txt">Mission Plan</span></button>
@@ -667,6 +657,7 @@ camera.position.set(0, 220, 520);
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.06;
+controls.enableZoom = false;   // zoom is driven by the UI slider, not the wheel
 
 // Bloom post-processing
 // Threshold-gated UnrealBloom: only bright pixels (Sun, flares, plumes, bright
@@ -789,6 +780,7 @@ const _YAXIS = new THREE.Vector3(0, 1, 0);
 const _XAXIS = new THREE.Vector3(1, 0, 0);
 const _camAnchor = new THREE.Vector3();   // live subject position for the chase camera
 const _chaseV    = new THREE.Vector3();   // scratch for the chase camera's desired pose
+const _zoomV     = new THREE.Vector3();   // scratch for the zoom-slider dolly
 
 // Build a Mission-Plan chase-camera descriptor: the camera trails the moving
 // subject (`anchorFn` returns its current world position each frame) from `back`
@@ -1833,7 +1825,8 @@ class EarthMoonView extends View {
       '<strong>EARTH · MOON</strong>' +
       'Mean distance <span class="accent">384,400 km</span> (60 Earth-radii)<br>' +
       'Moon period: 27.32 days · ISS in low Earth orbit<br>' +
-      'Sizes exaggerated, distance compressed for clarity';
+      'Phase detail in the side panel →';
+    this.activeStep = -1;   // tracks which panel step is lit (avoid DOM thrash)
 
     // Mission Plan: crewed lunar flight, launch → refuel → land
     this.director = new MissionDirector(this);
@@ -1864,7 +1857,11 @@ class EarthMoonView extends View {
         cam: (v) => trackCam(() => v.shipWorld(), 15, 4, 5, 0.5) },
     ];
   }
-  deactivate() { super.deactivate(); this.director.reset(); }   // never leave a plan running across tabs
+  deactivate() {
+    super.deactivate();
+    this.activeStep = -1;        // force the ambient panel to rebuild on return
+    this.director.reset();       // never leave a plan running across tabs
+  }
   build() {
     const sun = new THREE.DirectionalLight(0xfff4e0, 2.6);
     sun.position.set(1, 0.5, 0.7);
@@ -1989,6 +1986,7 @@ class EarthMoonView extends View {
     this.tanker.visible = true;
     this.fuelLink.visible = false;
     this.missionT = 0;                  // ambient loop restarts cleanly
+    this.activeStep = -1;               // ambient side panel rebuilds
     manager.stopChase();
     if (restoreCam) manager.cineGlide(this.pose.pos, this.pose.target, this.pose);
   }
@@ -2074,12 +2072,36 @@ class EarthMoonView extends View {
     }
   }
 
+  // Side-panel content; the active step lights up as the craft advances. Mirrors
+  // MarsView._renderPanel so both tabs read the same way.
+  _renderPanel(active) {
+    const steps = [
+      ['Parking Orbit', '~200 km low Earth orbit', 'Starship circularises in LEO and coasts, waiting on the tankers.', ''],
+      ['Orbital Refueling', 'Tanker rendezvous & transfer', 'A tanker docks and tops off the tank — the keystone of the architecture.', '≈ 1,200 t propellant'],
+      ['Trans-Lunar Injection', 'Departure burn', 'A single burn raises apogee to the Moon, committing to a trans-lunar arc.', 'Δv ≈ 3.08 km/s'],
+      ['Lunar Arrival', 'Powered descent', 'No atmosphere to brake against — the touchdown is entirely propulsive.', 'Δv ≈ 0.83 km/s'],
+    ];
+    setPanel(
+      '<h4>EARTH → MOON</h4><div class="sub">Crewed lunar flight · Starship</div>' +
+      steps.map(([t, s, d, dv], i) =>
+        `<div class="step${i === active ? ' active' : ''}">` +
+        `<strong>● ${t}</strong>${s}<br>${d}` +
+        (dv ? `<br><span class="dv">${dv}</span>` : '') +
+        '</div>'
+      ).join('')
+    );
+  }
+
   // Four-phase narrative loop: LEO orbit → orbital refuel → trans-lunar
   // injection → lunar arrival, then repeat. `missionT` runs 0→1.
   _mission(dt, speed) {
     this.missionT = (this.missionT + 0.04 * speed * dt) % 1;
     const t = this.missionT;
     const plume = this.ship.userData.plume;
+
+    // Light up the side-panel step matching the current phase (thresholds below).
+    const active = t < 0.25 ? 0 : t < 0.5 ? 1 : t < 0.85 ? 2 : 3;
+    if (active !== this.activeStep) { this.activeStep = active; this._renderPanel(active); }
 
     // Default LEO positions: ship and tanker on opposite sides of the parking ring.
     this.shipPivot.rotation.y   += 1.4 * speed * dt;
@@ -2664,6 +2686,37 @@ speedInput.addEventListener('input', () => {
   speedLabel.textContent = parseFloat(speedInput.value).toFixed(2) + '×';
 });
 
+// Zoom control — slider drives the camera's distance from its target (the wheel is
+// disabled above). Log-mapped across the live [minDistance, maxDistance] band so the
+// full slider travel spans whatever zoom range the current view/focus allows.
+const zoomInput = document.getElementById('zoom');
+const distFromSlider = (z) => {
+  const min = controls.minDistance, max = controls.maxDistance;
+  return max * Math.pow(min / max, z);             // z=0 far, z=1 near
+};
+const sliderFromDist = (d) => {
+  const min = controls.minDistance, max = controls.maxDistance;
+  if (min <= 0 || max <= min) return 0.5;
+  return Math.min(1, Math.max(0, Math.log(d / max) / Math.log(min / max)));
+};
+function applyZoom(dist) {
+  _zoomV.subVectors(camera.position, controls.target);
+  const cur = _zoomV.length();
+  if (cur < 1e-6) return;
+  camera.position.copy(controls.target).addScaledVector(_zoomV, dist / cur);
+}
+zoomInput.addEventListener('input', () => {
+  applyZoom(distFromSlider(parseFloat(zoomInput.value)));
+  controls.update();
+});
+// Keep the thumb reflecting the true distance through eased glides, focus and tab
+// switches. applyZoom sets the distance to exactly match the slider, so reading it back
+// yields the same value — no feedback fight, no drag flag needed.
+function syncZoomSlider() {
+  _zoomV.subVectors(camera.position, controls.target);
+  zoomInput.value = sliderFromDist(_zoomV.length());
+}
+
 // Resize
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
@@ -2680,6 +2733,7 @@ function animate() {
   const dt    = Math.min(clock.getDelta(), 0.05);   // clamp to survive tab-switch stalls
   const speed = parseFloat(speedInput.value);
   manager.update(dt, speed);
+  syncZoomSlider();                                     // thumb tracks the live distance
   animatePlumes(clock.getElapsedTime());                // shimmer any powered exhaust
   if (starfield) starfield.rotation.y += dt * 0.004;   // slow celestial drift
   composer.render();
