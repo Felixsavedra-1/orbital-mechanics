@@ -4,10 +4,8 @@ AU = 149_597_870_700.0   # meters, IAU 2012 Resolution B2
 SUN_MASS = 1.98892e30    # kg, IAU 2015 Resolution B3
 EARTH_MASS = 5.9722e24   # kg, NASA Earth fact sheet (2024)
 
-# Standard gravitational parameters mu = G*M (m^3 s^-2). Published mu values are
-# measured far more precisely than G or M individually, so the astrodynamics layer
-# uses these directly rather than reconstructing G*M (which would inherit G's ~22 ppm
-# uncertainty). Sources: IAU 2015 / JPL DE440 / NASA planetary fact sheets.
+# Standard gravitational parameters mu = G*M (m^3 s^-2), used directly because published
+# mu values are far more precise than G or M alone. Sources: IAU 2015 / JPL DE440 / NASA.
 MU_SUN = 1.32712440018e20   # m^3 s^-2, IAU 2015 (heliocentric)
 MU_EARTH = 3.986004418e14   # m^3 s^-2, EGM2008 / WGS84
 MU_MARS = 4.282837e13       # m^3 s^-2, JPL Mars GM
@@ -32,7 +30,7 @@ ATMOSPHERE_RHO0 = 3.614e-12   # kg/m^3 at the reference altitude (Vallado, ~400 
 ATMOSPHERE_H0 = 400_000.0     # m, reference altitude
 ATMOSPHERE_SCALE_HEIGHT = 60_000.0  # m, representative scale height near 400-500 km
 
-DATA_VALIDATION_DATE = "2025-01-01"  # last verified against NASA/JPL/CODATA/IAU sources; update manually when re-verified
+DATA_VALIDATION_DATE = "2025-01-01"  # last verified against NASA/JPL/CODATA/IAU sources
 
 # Orbital eccentricities at epoch J2000.0, from JPL Horizons
 EARTH_ECCENTRICITY = 0.0167086   # NASA Earth fact sheet (2024)

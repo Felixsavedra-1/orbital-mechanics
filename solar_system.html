@@ -86,12 +86,24 @@
       box-shadow: var(--panel-shadow);
       pointer-events: none;
       z-index: 6;            /* above #hud (5), below #tabs (10) */
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
     #branding .name {
       display: block;
       color: var(--ink);
       font: 700 19px/1.1 var(--disp);
       letter-spacing: 0.04em;
+    }
+    #branding .brand-orbit {       /* VR-03 portfolio visual, scaled down */
+      width: 56px;
+      height: 35px;                /* 256:160 → 1.6 aspect ratio */
+      flex: none;
+      opacity: 0.95;
+      border: 1px solid var(--hair);
+      border-radius: 3px;
+      background: linear-gradient(180deg, rgba(238,232,218,0.04), rgba(0,0,0,0.25));
     }
 
     /* HUD (top-left, per-view) */
@@ -486,6 +498,7 @@
 
 <header id="branding">
   <span class="name">Vedra Research</span>
+  <canvas class="brand-orbit" data-scene="orbit" width="128" height="80" aria-hidden="true"></canvas>
 </header>
 
 <div id="hud"></div>
@@ -2672,6 +2685,86 @@ function animate() {
   composer.render();
 }
 animate();
+</script>
+
+<!-- Branding visual: VR-03 portfolio orbit animation (self-contained, copied verbatim) -->
+<script>
+(function(){
+  var GOLD='178,58,58', GREY='140,140,147', BONE='#E8E3D6', BONE_RGB='232,227,214';
+
+  function grid(ctx,W,H){
+    ctx.strokeStyle='rgba(38,38,43,0.85)'; ctx.lineWidth=1;
+    for(var x=0;x<=W;x+=W/8){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+    for(var y=0;y<=H;y+=H/8){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  }
+  function dot(ctx,x,y,r,fill){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=fill;ctx.fill();}
+  function ring(ctx,x,y,r,s){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.strokeStyle=s;ctx.lineWidth=1;ctx.stroke();}
+  function glow(ctx,x,y,r,rgb,a){
+    var g=ctx.createRadialGradient(x,y,0,x,y,r);
+    g.addColorStop(0,'rgba('+rgb+','+a+')'); g.addColorStop(1,'rgba('+rgb+',0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+  }
+  function tail(ctx,pts,rgb,maxA,maxW){
+    ctx.lineCap='round';
+    for(var i=0;i<pts.length-1;i++){
+      var f=1-i/(pts.length-1);
+      ctx.strokeStyle='rgba('+rgb+','+(maxA*f).toFixed(3)+')';
+      ctx.lineWidth=Math.max(0.4,maxW*f);
+      ctx.beginPath();ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[i+1].x,pts[i+1].y);ctx.stroke();
+    }
+    ctx.lineCap='butt';
+  }
+
+  function drawOrbit(ctx,W,H,t){
+    grid(ctx,W,H);
+    var cx=W*0.5, cy=H*0.5, UX=W*0.30, UY=H*0.30;   // screen length of Earth's orbit radius
+    var k=1.524;                                      // real Mars/Earth semi-major axis ratio
+    var e=(k-1)/(k+1), p=1*(1+e);                     // transfer ellipse, Sun at focus, perihelion=Earth
+    var phi=t*0.12+0.6;                               // slow revolution of the whole configuration
+    function sx(nx){return cx+nx*UX;} function sy(ny){return cy+ny*UY;}
+    // orbits
+    ctx.beginPath();ctx.ellipse(cx,cy,UX,UY,0,0,Math.PI*2);ctx.strokeStyle='rgba('+GREY+',0.30)';ctx.lineWidth=1;ctx.stroke();
+    ctx.beginPath();ctx.ellipse(cx,cy,k*UX,k*UY,0,0,Math.PI*2);ctx.strokeStyle='rgba('+GREY+',0.20)';ctx.lineWidth=1;ctx.stroke();
+    // Sun at focus
+    glow(ctx,cx,cy,18,GOLD,0.5); dot(ctx,cx,cy,3,'rgba('+GOLD+',0.95)'); ring(ctx,cx,cy,6,'rgba('+GOLD+',0.28)');
+    // planned transfer trajectory (dashed arc, perihelion at Earth -> aphelion at Mars)
+    ctx.save();ctx.setLineDash([4,4]);ctx.beginPath();
+    for(var i=0;i<=90;i++){var nu=i/90*Math.PI,r=p/(1+e*Math.cos(nu)),L=phi+nu;
+      var X=sx(r*Math.cos(L)),Y=sy(r*Math.sin(L));if(i===0)ctx.moveTo(X,Y);else ctx.lineTo(X,Y);}
+    ctx.strokeStyle='rgba('+GOLD+',0.30)';ctx.lineWidth=1.1;ctx.stroke();ctx.restore();
+    // Earth at departure node
+    var eX=sx(Math.cos(phi)),eY=sy(Math.sin(phi));
+    glow(ctx,eX,eY,7,BONE_RGB,0.45); dot(ctx,eX,eY,2.6,BONE); ring(ctx,eX,eY,5,'rgba(232,227,214,0.30)');
+    // Mars at arrival node
+    var mX=sx(-k*Math.cos(phi)),mY=sy(-k*Math.sin(phi));
+    glow(ctx,mX,mY,9,GOLD,0.55); dot(ctx,mX,mY,2.8,'rgba('+GOLD+',0.95)'); ring(ctx,mX,mY,5.5,'rgba('+GOLD+',0.30)');
+    // spacecraft in transit
+    var tau=((t*0.22)%1+1)%1, nu=tau*Math.PI;
+    var env=Math.min(1,Math.min(tau,1-tau)/0.08); if(env<0)env=0;
+    var pts=[];
+    for(var s=0;s<22;s++){var nv=nu-s*0.06; if(nv<0)break;
+      var rr=p/(1+e*Math.cos(nv)),LL=phi+nv;pts.push({x:sx(rr*Math.cos(LL)),y:sy(rr*Math.sin(LL))});}
+    ctx.globalAlpha=env;
+    if(pts.length>1) tail(ctx,pts,GOLD,0.95,2.6);
+    var rH=p/(1+e*Math.cos(nu)),LH=phi+nu;
+    glow(ctx,sx(rH*Math.cos(LH)),sy(rH*Math.sin(LH)),7,GOLD,0.6); dot(ctx,sx(rH*Math.cos(LH)),sy(rH*Math.sin(LH)),2.2,BONE);
+    ctx.globalAlpha=1;
+  }
+
+  var SCENES={orbit:drawOrbit};
+  var items=[];
+  [].forEach.call(document.querySelectorAll('canvas[data-scene]'), function(c){
+    var fn=SCENES[c.getAttribute('data-scene')]; if(!fn) return;
+    items.push({ctx:c.getContext('2d'), W:c.width, H:c.height, fn:fn});
+  });
+  if(!items.length) return;
+
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var t=0;
+  function frame(){ for(var i=0;i<items.length;i++){ var it=items[i]; it.ctx.clearRect(0,0,it.W,it.H); it.fn(it.ctx,it.W,it.H,t); } }
+  if(reduce){ frame(); }
+  else { (function loop(){ t+=0.011; frame(); requestAnimationFrame(loop); })(); }
+})();
 </script>
 </body>
 </html>
