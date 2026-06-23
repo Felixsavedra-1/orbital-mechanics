@@ -4,14 +4,20 @@
 <meta charset="UTF-8" />
 <title>VR-03 — orbit visual capture harness</title>
 <style>
+  /* Mirrors the portfolio card exactly (Downloads/index.html .plot-canvas):
+     scene drawn in logical 256x160, backing store 2x (512x320) for crisp
+     supersampling, with the same gradient panel + thin border. */
   html,body{margin:0;background:#0A0A0B;}
-  /* CSS size matches the capture viewport; the backing store is 2x via the
-     device pixel ratio of the headless browser (deviceScaleFactor:2). */
-  #stage{display:block;width:760px;height:500px;}
+  #stage{width:256px;height:160px;}
+  #c{
+    width:256px;height:160px;display:block;
+    border:1px solid #26262B;border-radius:2px;
+    background:linear-gradient(180deg,#111113,#0A0A0B);
+  }
 </style>
 </head>
 <body>
-<canvas id="stage" width="760" height="500"></canvas>
+<div id="stage"><canvas id="c" width="512" height="320"></canvas></div>
 <script>
 // ---------------------------------------------------------------------------
 // VR-03 orbit visual — copied verbatim from the Vedra Research site
@@ -20,7 +26,9 @@
 //   * the slow whole-scene rotation (phi) is FROZEN to a fixed layout so a
 //     single spacecraft transit loops seamlessly;
 //   * drawOrbit takes an explicit `tau` (transit fraction) instead of deriving
-//     it from a running clock, driven by renderFrame(i, count).
+//     it from a running clock, driven by renderFrame(i, count);
+//   * the scene is drawn in the site's native 256x160 logical space (ctx
+//     scaled 2x onto a 512x320 backing) so body sizes stay portfolio-true.
 // ---------------------------------------------------------------------------
 var GOLD='178,58,58', CRIM='178,58,58', GREY='140,140,147', BONE='#E8E3D6', BONE_RGB='232,227,214';
 var PHI=2.4;   // frozen layout: Earth lower-left, Mars upper-right
@@ -84,17 +92,18 @@ function drawOrbit(ctx,W,H,tau){
   ctx.globalAlpha=1;
 }
 
-var stage=document.getElementById('stage');
+var stage=document.getElementById('c');
 var ctx=stage.getContext('2d');
+ctx.scale(2,2);   // backing 512x320, scene drawn in logical 256x160 (portfolio-native)
 
 // Render frame i of `count` — one full pass is exactly one spacecraft transit,
 // which loops seamlessly because the craft's `env` fades it to alpha 0 at both
-// tau=0 and tau=1. Called by the puppeteer capture script.
+// tau=0 and tau=1. clearRect (not a solid fill) lets the CSS gradient panel show
+// through, matching the portfolio card. Called by the puppeteer capture script.
 window.renderFrame=function(i,count){
   var tau=i/count;
-  ctx.fillStyle='#0A0A0B';
-  ctx.fillRect(0,0,stage.width,stage.height);
-  drawOrbit(ctx,stage.width,stage.height,tau);
+  ctx.clearRect(0,0,256,160);
+  drawOrbit(ctx,256,160,tau);
 };
 
 // Initial frame so a plain open shows something.

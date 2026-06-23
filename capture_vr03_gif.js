@@ -8,8 +8,8 @@ const path = require('path');
 // GIF for the README footer. Mirrors capture_gif.js — same puppeteer ->
 // gif-encoder-2 -> jimp -> (gifsicle) pipeline and 2x supersample/downscale.
 
-const WIDTH = 760;
-const HEIGHT = 500;             // ~3:2, matched to the VRcompany.png logo (1536x1024)
+const WIDTH = 512;
+const HEIGHT = 320;             // 256x160 @2x — the portfolio orbit card's native aspect (8:5)
 const FRAME_DELAY = 60;         // ms between frames (~16.7 fps), same cadence as capture_gif.js
 const FRAMES = 50;              // one full pass = one spacecraft transit => seamless loop
 
@@ -20,20 +20,22 @@ async function main() {
   });
 
   const page = await browser.newPage();
-  // deviceScaleFactor: 2 renders at 2x; Jimp downscales to WIDTH x HEIGHT below
-  // for crisp, less-banded frames (same trick as the Three.js capture).
-  await page.setViewport({ width: WIDTH, height: HEIGHT, deviceScaleFactor: 2 });
+  // The card is 256x160 CSS; deviceScaleFactor: 2 captures the styled #c element
+  // at WIDTH x HEIGHT (512x320), 1:1 with its 2x backing store — crisp, no rescale.
+  await page.setViewport({ width: 360, height: 240, deviceScaleFactor: 2 });
 
   const htmlPath = path.resolve(__dirname, 'vr03_orbit_capture.html');
   await page.goto(`file://${htmlPath}`);
   await new Promise(r => setTimeout(r, 300));   // let fonts/canvas settle
+
+  const card = await page.$('#c');              // screenshot the bordered card, not the page
 
   const frames = [];
   const sleep = ms => new Promise(r => setTimeout(r, ms));
 
   for (let i = 0; i < FRAMES; i++) {
     await page.evaluate((idx, n) => window.renderFrame(idx, n), i, FRAMES);
-    frames.push(await page.screenshot({ type: 'png' }));
+    frames.push(await card.screenshot({ type: 'png' }));
     process.stdout.write(`\r  orbit: frame ${i + 1}/${FRAMES}   `);
     await sleep(20);
   }

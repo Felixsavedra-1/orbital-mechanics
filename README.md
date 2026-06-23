@@ -213,8 +213,13 @@ Covers: physics functions · invalid input rejection · data integrity · JSON s
 
 ---
 
-<p align="center">
-  <img src="VRcompany.png" width="49%" alt="Vedra Research">
-  &nbsp;
-  <img src="vr03-orbit.gif" width="49%" alt="VR-03 — Orbital Mechanics Engine">
-</p>
+<table align="center" width="100%">
+<tr>
+<td width="50%" align="center" valign="middle">
+  <img src="VRcompany.png" width="92%" alt="Vedra Research" />
+</td>
+<td width="50%" align="center" valign="middle">
+  <img src="vr03-orbit.gif" width="92%" alt="VR-03 — Orbital Mechanics Engine: Earth→Mars Hohmann transfer, spacecraft riding the minimum-energy ellipse past the Sun" />
+</td>
+</tr>
+</table>
