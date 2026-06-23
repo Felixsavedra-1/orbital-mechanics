@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>VR-03 — orbit visual capture harness</title>
+<style>
+  html,body{margin:0;background:#0A0A0B;}
+  /* CSS size matches the capture viewport; the backing store is 2x via the
+     device pixel ratio of the headless browser (deviceScaleFactor:2). */
+  #stage{display:block;width:760px;height:500px;}
+</style>
+</head>
+<body>
+<canvas id="stage" width="760" height="500"></canvas>
+<script>
+// ---------------------------------------------------------------------------
+// VR-03 orbit visual — copied verbatim from the Vedra Research site
+// (index.html drawOrbit + helpers) so the README GIF is pixel-faithful to the
+// project's thumbnail on the company website. The only changes vs the site:
+//   * the slow whole-scene rotation (phi) is FROZEN to a fixed layout so a
+//     single spacecraft transit loops seamlessly;
+//   * drawOrbit takes an explicit `tau` (transit fraction) instead of deriving
+//     it from a running clock, driven by renderFrame(i, count).
+// ---------------------------------------------------------------------------
+var GOLD='178,58,58', CRIM='178,58,58', GREY='140,140,147', BONE='#E8E3D6', BONE_RGB='232,227,214';
+var PHI=2.4;   // frozen layout: Earth lower-left, Mars upper-right
+
+function grid(ctx,W,H){
+  ctx.strokeStyle='rgba(38,38,43,0.85)'; ctx.lineWidth=1;
+  for(var x=0;x<=W;x+=W/8){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(var y=0;y<=H;y+=H/8){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+}
+function dot(ctx,x,y,r,fill){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=fill;ctx.fill();}
+function ring(ctx,x,y,r,s){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.strokeStyle=s;ctx.lineWidth=1;ctx.stroke();}
+function glow(ctx,x,y,r,rgb,a){
+  var g=ctx.createRadialGradient(x,y,0,x,y,r);
+  g.addColorStop(0,'rgba('+rgb+','+a+')'); g.addColorStop(1,'rgba('+rgb+',0)');
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+}
+function tail(ctx,pts,rgb,maxA,maxW){
+  ctx.lineCap='round';
+  for(var i=0;i<pts.length-1;i++){
+    var f=1-i/(pts.length-1);
+    ctx.strokeStyle='rgba('+rgb+','+(maxA*f).toFixed(3)+')';
+    ctx.lineWidth=Math.max(0.4,maxW*f);
+    ctx.beginPath();ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[i+1].x,pts[i+1].y);ctx.stroke();
+  }
+  ctx.lineCap='butt';
+}
+
+function drawOrbit(ctx,W,H,tau){
+  grid(ctx,W,H);
+  var cx=W*0.5, cy=H*0.5, UX=W*0.30, UY=H*0.30;   // screen length of Earth's orbit radius
+  var k=1.524;                                      // real Mars/Earth semi-major axis ratio
+  var e=(k-1)/(k+1), p=1*(1+e);                     // transfer ellipse, Sun at focus, perihelion=Earth
+  var phi=PHI;                                       // FROZEN configuration (no slow revolution)
+  function sx(nx){return cx+nx*UX;} function sy(ny){return cy+ny*UY;}
+  // orbits
+  ctx.beginPath();ctx.ellipse(cx,cy,UX,UY,0,0,Math.PI*2);ctx.strokeStyle='rgba('+GREY+',0.30)';ctx.lineWidth=1;ctx.stroke();
+  ctx.beginPath();ctx.ellipse(cx,cy,k*UX,k*UY,0,0,Math.PI*2);ctx.strokeStyle='rgba('+GREY+',0.20)';ctx.lineWidth=1;ctx.stroke();
+  // Sun at focus
+  glow(ctx,cx,cy,18,GOLD,0.5); dot(ctx,cx,cy,3,'rgba('+GOLD+',0.95)'); ring(ctx,cx,cy,6,'rgba('+GOLD+',0.28)');
+  // planned transfer trajectory (dashed arc, perihelion at Earth -> aphelion at Mars)
+  ctx.save();ctx.setLineDash([4,4]);ctx.beginPath();
+  for(var i=0;i<=90;i++){var nu=i/90*Math.PI,r=p/(1+e*Math.cos(nu)),L=phi+nu;
+    var X=sx(r*Math.cos(L)),Y=sy(r*Math.sin(L));if(i===0)ctx.moveTo(X,Y);else ctx.lineTo(X,Y);}
+  ctx.strokeStyle='rgba('+GOLD+',0.30)';ctx.lineWidth=1.1;ctx.stroke();ctx.restore();
+  // Earth at departure node
+  var eX=sx(Math.cos(phi)),eY=sy(Math.sin(phi));
+  glow(ctx,eX,eY,7,BONE_RGB,0.45); dot(ctx,eX,eY,2.6,BONE); ring(ctx,eX,eY,5,'rgba(232,227,214,0.30)');
+  // Mars at arrival node
+  var mX=sx(-k*Math.cos(phi)),mY=sy(-k*Math.sin(phi));
+  glow(ctx,mX,mY,9,GOLD,0.55); dot(ctx,mX,mY,2.8,'rgba('+GOLD+',0.95)'); ring(ctx,mX,mY,5.5,'rgba('+GOLD+',0.30)');
+  // spacecraft in transit — tau is the transit fraction (0..1), driven externally
+  var nu=tau*Math.PI;
+  var env=Math.min(1,Math.min(tau,1-tau)/0.08); if(env<0)env=0;
+  var pts=[];
+  for(var s=0;s<22;s++){var nv=nu-s*0.06; if(nv<0)break;
+    var rr=p/(1+e*Math.cos(nv)),LL=phi+nv;pts.push({x:sx(rr*Math.cos(LL)),y:sy(rr*Math.sin(LL))});}
+  ctx.globalAlpha=env;
+  if(pts.length>1) tail(ctx,pts,GOLD,0.95,2.6);
+  var rH=p/(1+e*Math.cos(nu)),LH=phi+nu;
+  glow(ctx,sx(rH*Math.cos(LH)),sy(rH*Math.sin(LH)),7,GOLD,0.6); dot(ctx,sx(rH*Math.cos(LH)),sy(rH*Math.sin(LH)),2.2,BONE);
+  ctx.globalAlpha=1;
+}
+
+var stage=document.getElementById('stage');
+var ctx=stage.getContext('2d');
+
+// Render frame i of `count` — one full pass is exactly one spacecraft transit,
+// which loops seamlessly because the craft's `env` fades it to alpha 0 at both
+// tau=0 and tau=1. Called by the puppeteer capture script.
+window.renderFrame=function(i,count){
+  var tau=i/count;
+  ctx.fillStyle='#0A0A0B';
+  ctx.fillRect(0,0,stage.width,stage.height);
+  drawOrbit(ctx,stage.width,stage.height,tau);
+};
+
+// Initial frame so a plain open shows something.
+window.renderFrame(0,50);
+</script>
+</body>
+</html>

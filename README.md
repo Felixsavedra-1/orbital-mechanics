@@ -213,4 +213,8 @@ Covers: physics functions · invalid input rejection · data integrity · JSON s
 
 ---
 
-<p align="center"><img src="VRcompany.png" width="50%" alt="Company"></p>
+<p align="center">
+  <img src="VRcompany.png" width="49%" alt="Vedra Research">
+  &nbsp;
+  <img src="vr03-orbit.gif" width="49%" alt="VR-03 — Orbital Mechanics Engine">
+</p>
