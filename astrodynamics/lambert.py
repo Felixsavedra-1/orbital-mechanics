@@ -12,6 +12,7 @@ from __future__ import annotations
 import math
 
 import numpy as np
+import numpy.typing as npt
 
 _TWO_PI = 2.0 * math.pi
 
@@ -39,8 +40,8 @@ def _stumpff_s(z: float) -> float:
 
 
 def solve_lambert(
-    r1,
-    r2,
+    r1: npt.ArrayLike,
+    r2: npt.ArrayLike,
     tof: float,
     mu: float,
     prograde: bool = True,

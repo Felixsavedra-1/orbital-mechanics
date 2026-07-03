@@ -22,16 +22,20 @@
 // ---------------------------------------------------------------------------
 // VR-03 orbit visual — copied verbatim from the Vedra Research site
 // (index.html drawOrbit + helpers) so the README GIF is pixel-faithful to the
-// project's thumbnail on the company website. The only changes vs the site:
-//   * the slow whole-scene rotation (phi) is FROZEN to a fixed layout so a
-//     single spacecraft transit loops seamlessly;
-//   * drawOrbit takes an explicit `tau` (transit fraction) instead of deriving
-//     it from a running clock, driven by renderFrame(i, count);
+// project's thumbnail on the company website. drawOrbit itself is unchanged; the
+// only adaptation is how it's driven for a seamless loop:
+//   * both `phi` (whole-scene rotation) and `tau` (spacecraft transit fraction)
+//     are explicit parameters driven by renderFrame(i, count) as exact functions
+//     of the frame index, so frame `count` returns to frame 0 with no jump;
+//   * `phi` sweeps exactly one full revolution (+2π) over the loop and `tau`
+//     completes an integer number of transits (NTRANSITS) — the site's true
+//     transit-to-rotation cadence (~0.22 / (0.12/2π) ≈ 11.5, rounded to 12);
 //   * the scene is drawn in the site's native 256x160 logical space (ctx
 //     scaled 2x onto a 512x320 backing) so body sizes stay portfolio-true.
 // ---------------------------------------------------------------------------
 var GOLD='178,58,58', CRIM='178,58,58', GREY='140,140,147', BONE='#E8E3D6', BONE_RGB='232,227,214';
-var PHI=2.4;   // frozen layout: Earth lower-left, Mars upper-right
+var PHI0=0.6;       // base orientation (the site's own phi offset): Mars upper-left, Earth lower-right
+var NTRANSITS=12;   // spacecraft transits per full revolution — the site's true cadence
 
 function grid(ctx,W,H){
   ctx.strokeStyle='rgba(38,38,43,0.85)'; ctx.lineWidth=1;
@@ -56,12 +60,11 @@ function tail(ctx,pts,rgb,maxA,maxW){
   ctx.lineCap='butt';
 }
 
-function drawOrbit(ctx,W,H,tau){
+function drawOrbit(ctx,W,H,phi,tau){
   grid(ctx,W,H);
   var cx=W*0.5, cy=H*0.5, UX=W*0.30, UY=H*0.30;   // screen length of Earth's orbit radius
   var k=1.524;                                      // real Mars/Earth semi-major axis ratio
   var e=(k-1)/(k+1), p=1*(1+e);                     // transfer ellipse, Sun at focus, perihelion=Earth
-  var phi=PHI;                                       // FROZEN configuration (no slow revolution)
   function sx(nx){return cx+nx*UX;} function sy(ny){return cy+ny*UY;}
   // orbits
   ctx.beginPath();ctx.ellipse(cx,cy,UX,UY,0,0,Math.PI*2);ctx.strokeStyle='rgba('+GREY+',0.30)';ctx.lineWidth=1;ctx.stroke();
@@ -96,14 +99,18 @@ var stage=document.getElementById('c');
 var ctx=stage.getContext('2d');
 ctx.scale(2,2);   // backing 512x320, scene drawn in logical 256x160 (portfolio-native)
 
-// Render frame i of `count` — one full pass is exactly one spacecraft transit,
-// which loops seamlessly because the craft's `env` fades it to alpha 0 at both
-// tau=0 and tau=1. clearRect (not a solid fill) lets the CSS gradient panel show
-// through, matching the portfolio card. Called by the puppeteer capture script.
+// Render frame i of `count`. One full pass is exactly one revolution of the whole
+// configuration (phi sweeps +2π) and NTRANSITS spacecraft transits — both exact
+// functions of i/count, so frame `count` lands back on frame 0 with no jump. The
+// craft's `env` still fades it at each tau wrap, so the per-transit seam is clean
+// too. clearRect (not a solid fill) lets the CSS gradient panel show through,
+// matching the portfolio card. Called by the puppeteer capture script.
 window.renderFrame=function(i,count){
-  var tau=i/count;
+  var f=i/count;
+  var phi=PHI0+2*Math.PI*f;     // one full seamless revolution
+  var tau=(f*NTRANSITS)%1;      // NTRANSITS seamless spacecraft transits
   ctx.clearRect(0,0,256,160);
-  drawOrbit(ctx,256,160,tau);
+  drawOrbit(ctx,256,160,phi,tau);
 };
 
 // Initial frame so a plain open shows something.

@@ -7,8 +7,10 @@ from astrodynamics.forces import (
     ForceModel,
     atmospheric_density,
     j2_acceleration,
+    srp_acceleration,
     third_body_acceleration,
     two_body_acceleration,
+    zonal_acceleration,
 )
 from astrodynamics.integrators import (
     Trajectory,
@@ -24,7 +26,16 @@ from astrodynamics.state import (
     propagate_kepler,
     state_to_elements,
 )
-from constants import ATMOSPHERE_H0, ATMOSPHERE_RHO0, EARTH_J2, EARTH_RADIUS_EQUATORIAL, MU_EARTH
+from constants import (
+    ATMOSPHERE_BANDS,
+    AU,
+    EARTH_J2,
+    EARTH_RADIUS,
+    EARTH_RADIUS_EQUATORIAL,
+    EARTH_ZONAL_J2_TO_J6,
+    MU_EARTH,
+    SOLAR_PRESSURE_1AU,
+)
 
 
 def _leo_state(a=7.0e6, e=0.001, i_deg=45.0, raan_deg=30.0, argp_deg=0.0, nu_deg=0.0):
@@ -61,8 +72,42 @@ class TestForceFunctions(unittest.TestCase):
         self.assertLess(np.linalg.norm(a), 1e-12)
 
     def test_atmospheric_density_reference(self):
-        self.assertAlmostEqual(atmospheric_density(ATMOSPHERE_H0), ATMOSPHERE_RHO0, places=18)
-        self.assertLess(atmospheric_density(ATMOSPHERE_H0 + 100e3), atmospheric_density(ATMOSPHERE_H0))
+        # At each band's base altitude the density equals that band's base value exactly.
+        for h0, rho0, _ in ATMOSPHERE_BANDS:
+            self.assertAlmostEqual(atmospheric_density(h0), rho0, delta=rho0 * 1e-12)
+        # Density falls off monotonically with altitude.
+        self.assertLess(atmospheric_density(500e3), atmospheric_density(400e3))
+        self.assertLess(atmospheric_density(400e3), atmospheric_density(200e3))
+
+    def test_zonal_reduces_to_j2(self):
+        # zonal_acceleration with only J2 must reproduce the standalone J2 term.
+        for r in (np.array([7.0e6, 1.2e6, 0.8e6]), np.array([6.8e6, 0.0, 3.0e6])):
+            z = zonal_acceleration(r, MU_EARTH, EARTH_RADIUS_EQUATORIAL, (EARTH_J2,))
+            j = j2_acceleration(r, MU_EARTH, EARTH_J2, EARTH_RADIUS_EQUATORIAL)
+            np.testing.assert_allclose(z, j, rtol=1e-10)
+
+    def test_higher_order_zonal_is_small_correction(self):
+        # J3..J6 perturb the J2 acceleration by a fraction of a percent, never more than J2.
+        r = np.array([7.0e6, 1.2e6, 0.8e6])
+        j2_only = zonal_acceleration(r, MU_EARTH, EARTH_RADIUS_EQUATORIAL, (EARTH_J2,))
+        full = zonal_acceleration(r, MU_EARTH, EARTH_RADIUS_EQUATORIAL, EARTH_ZONAL_J2_TO_J6)
+        rel = np.linalg.norm(full - j2_only) / np.linalg.norm(j2_only)
+        self.assertTrue(0.0 < rel < 0.05, f"higher-order/J2 = {rel}")
+
+    def test_srp_magnitude_and_shadow(self):
+        # Sunlit satellite: |a| = P(1AU) * (AU/d)^2 * Cr*A/m, directed away from the Sun.
+        r_sun = np.array([AU, 0.0, 0.0])
+        r_sat = np.array([7.0e6, 0.0, 0.0])  # sunlit (between Earth and Sun side)
+        cr_am = 0.02
+        a = srp_acceleration(r_sat, r_sun, cr_am)
+        d = np.linalg.norm(r_sun - r_sat)
+        expected = SOLAR_PRESSURE_1AU * (AU / d) ** 2 * cr_am
+        self.assertAlmostEqual(np.linalg.norm(a), expected, delta=expected * 1e-9)
+        self.assertLess(a[0], 0.0)  # pushed away from the Sun (-x)
+
+        # Eclipsed satellite (directly behind Earth, anti-Sun side): zero SRP.
+        r_eclipsed = np.array([-7.0e6, 0.0, 0.0])
+        self.assertEqual(np.linalg.norm(srp_acceleration(r_eclipsed, r_sun, cr_am)), 0.0)
 
 
 class TestTwoBodyConservation(unittest.TestCase):
@@ -133,6 +178,26 @@ class TestDragDecay(unittest.TestCase):
         self.assertLess(e_after, e_before)  # energy decreased -> orbit decaying
         a_after = state_to_elements(StateVector(traj.final_r, traj.final_v), MU_EARTH).a
         self.assertLess(a_after, r0)
+
+
+class TestForceModelComposition(unittest.TestCase):
+    def test_srp_requires_sun_position(self):
+        _, state = _leo_state()
+        with self.assertRaises(ValueError):
+            propagate(state.r, state.v, (0.0, 100.0), ForceModel(use_srp=True))
+
+    def test_zonal_and_srp_compose(self):
+        # Full zonal field + SRP (with a fixed Sun direction) integrates to a finite,
+        # near-circular LEO state — the perturbations are small corrections to two-body.
+        _, state = _leo_state()
+        sun = np.array([AU, 0.0, 0.0])
+        fm = ForceModel(
+            mu=MU_EARTH, zonal=EARTH_ZONAL_J2_TO_J6,
+            use_srp=True, cr_area_over_mass=0.01, sun_position=lambda t: sun,
+        )
+        traj = propagate(state.r, state.v, (0.0, 2.0 * _period(7.0e6)), fm, n_eval=50, rtol=1e-10)
+        self.assertTrue(np.all(np.isfinite(traj.final_r)))
+        self.assertTrue(EARTH_RADIUS < np.linalg.norm(traj.final_r) < 8.0e6)
 
 
 class TestPropagateValidation(unittest.TestCase):

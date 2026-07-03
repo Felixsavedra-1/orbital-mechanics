@@ -15,6 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
+import numpy.typing as npt
 from scipy.integrate import solve_ivp
 
 from astrodynamics.forces import ForceModel
@@ -38,8 +39,8 @@ class Trajectory:
 
 
 def propagate(
-    r0,
-    v0,
+    r0: npt.ArrayLike,
+    v0: npt.ArrayLike,
     t_span: tuple[float, float],
     force_model: ForceModel,
     n_eval: int = 200,
@@ -75,14 +76,14 @@ def propagate(
     return Trajectory(t=sol.t, r=sol.y[:3].T, v=sol.y[3:].T)
 
 
-def specific_energy(r, v, mu: float) -> float:
+def specific_energy(r: npt.ArrayLike, v: npt.ArrayLike, mu: float) -> float:
     """Specific orbital energy eps = v^2/2 - mu/r (J/kg)."""
     r = np.asarray(r, dtype=float)
     v = np.asarray(v, dtype=float)
     return 0.5 * float(np.dot(v, v)) - mu / float(np.linalg.norm(r))
 
 
-def specific_angular_momentum(r, v) -> np.ndarray:
+def specific_angular_momentum(r: npt.ArrayLike, v: npt.ArrayLike) -> np.ndarray:
     """Specific angular momentum vector h = r x v (m^2/s)."""
     return np.cross(np.asarray(r, dtype=float), np.asarray(v, dtype=float))
 

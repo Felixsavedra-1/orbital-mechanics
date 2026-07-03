@@ -165,15 +165,18 @@ def _mission_records() -> list[MetricRecord]:
     real-ephemeris counterpart to the idealized Hohmann figure in the 'transfers' section.
     """
     from astrodynamics.ephemeris import datetime_to_jd, jd_to_datetime
+    from astrodynamics.mission_design import mission_delta_v
     from astrodynamics.porkchop import best_transfer
 
     start_jd = datetime_to_jd(_MISSION_SEARCH_START)
     departure_jds = [start_jd + _MISSION_DEP_STEP_DAYS * k for k in range(_MISSION_DEP_COUNT)]
     best = best_transfer("Earth", "Mars", departure_jds, _MISSION_TOF_DAYS)
+    budget = mission_delta_v(best)
 
     dep_date = jd_to_datetime(best.departure_jd).date().isoformat()
     arr_date = jd_to_datetime(best.arrival_jd).date().isoformat()
     method = "Lambert + approx. JPL ephemeris"
+    impulsive = "Impulsive; excludes finite-burn/gravity losses and EDL"
     return [
         MetricRecord("mission", "Optimal departure (Earth)", dep_date,
                      value_num=round(best.departure_jd, 4), unit="JD", note=method),
@@ -190,6 +193,15 @@ def _mission_records() -> list[MetricRecord]:
         MetricRecord("mission", "Total v-infinity", f"{best.total_v_inf_km_s:.2f}",
                      value_num=round(best.total_v_inf_km_s, 3), unit="km/s",
                      note="First-order delta-v proxy (departure + arrival)"),
+        MetricRecord("mission", "Injection delta-v", f"{budget.injection_m_s / 1000.0:.2f}",
+                     value_num=round(budget.injection_m_s / 1000.0, 3), unit="km/s",
+                     note="200 km Earth parking orbit -> departure hyperbola"),
+        MetricRecord("mission", "Capture delta-v", f"{budget.capture_m_s / 1000.0:.2f}",
+                     value_num=round(budget.capture_m_s / 1000.0, 3), unit="km/s",
+                     note="Arrival hyperbola -> 400 km circular Mars orbit"),
+        MetricRecord("mission", "Total mission delta-v", f"{budget.total_m_s / 1000.0:.2f}",
+                     value_num=round(budget.total_m_s / 1000.0, 3), unit="km/s",
+                     note=impulsive),
     ]
 
 
@@ -240,6 +252,7 @@ def _format_text_metric(record: MetricRecord) -> str:
 
 
 def render_text(section: str) -> str:
+    """Render the report as human-readable text grouped by section."""
     records = collect_records(section)
     lines = [f"--{REPORT_TITLE}--", "Project Summary: orbital data and conceptual mission planning"]
     active_sections = SECTION_ORDER if section == "all" else [section]
@@ -284,6 +297,7 @@ def render_json(section: str) -> str:
 
 
 def render_csv(section: str) -> str:
+    """Render the report as CSV with one row per metric record."""
     records = collect_records(section)
     output = StringIO()
     writer = csv.writer(output)

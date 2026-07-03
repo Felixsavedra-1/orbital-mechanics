@@ -11,7 +11,8 @@ const path = require('path');
 const WIDTH = 512;
 const HEIGHT = 320;             // 256x160 @2x — the portfolio orbit card's native aspect (8:5)
 const FRAME_DELAY = 60;         // ms between frames (~16.7 fps), same cadence as capture_gif.js
-const FRAMES = 50;              // one full pass = one spacecraft transit => seamless loop
+const FRAMES = 180;             // one full pass = one revolution + 12 transits => seamless loop
+                                // (~15 frames/transit for smooth craft motion, ~2°/frame rotation)
 
 async function main() {
   console.log('Launching browser...');

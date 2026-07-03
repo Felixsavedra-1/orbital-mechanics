@@ -7,19 +7,19 @@
 <p align="center">
   <a href="https://github.com/Felixsavedra-1/orbital-mechanics-simulator/actions/workflows/ci.yml"><img src="https://github.com/Felixsavedra-1/orbital-mechanics-simulator/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/python-3.12-blue.svg" alt="Python 3.12">
-  <img src="https://img.shields.io/badge/tests-131%20passing-brightgreen.svg" alt="131 tests passing">
+  <img src="https://img.shields.io/badge/tests-139%20passing-brightgreen.svg" alt="139 tests passing">
   <img src="https://img.shields.io/badge/core-zero%20dependencies-success.svg" alt="Zero-dependency core">
 </p>
 
-A deterministic astrodynamics engine that computes orbital velocities, periods, transfer Δv, and real Earth→Mars launch windows from authoritative constants. The same JPL data drives an interactive Three.js dashboard, and a 131-test suite validates the physics against textbook worked examples and **live JPL Horizons** state vectors.
+A deterministic astrodynamics engine that computes orbital velocities, periods, transfer Δv, and real Earth→Mars launch windows from authoritative constants. The same JPL data drives an interactive Three.js dashboard, and a 139-test suite validates the physics against textbook worked examples and **live JPL Horizons** state vectors.
 
 ## Highlights
 
 - **Validated against live JPL Horizons** — ephemeris accurate to ~1300 km (Earth); perturbed propagation to ~14 km/week.
-- **Real launch-window analysis** — universal-variable Lambert solver + porkchop grid search yield actual Earth→Mars departure dates and Δv.
-- **High-fidelity propagation** — adaptive DOP853 integrator with J2 oblateness, atmospheric drag, and third-body perturbations.
+- **Real launch-window analysis** — universal-variable Lambert solver + porkchop grid search yield actual Earth→Mars departure dates, plus an impulsive injection/capture Δv budget.
+- **High-fidelity propagation** — adaptive DOP853 integrator with zonal gravity (J2–J6), a banded exponential atmosphere, solar radiation pressure, and third-body perturbations.
 - **Clean layered architecture** — a zero-dependency stdlib core with numpy/scipy imported lazily only for the high-fidelity layer.
-- **131 tests across 9 modules** — physics, schema contracts, Kepler round-trips, and conservation diagnostics, plus an interactive 3D Three.js dashboard.
+- **139 tests across 9 modules** — physics, schema contracts, Kepler round-trips, and conservation diagnostics, plus an interactive 3D Three.js dashboard.
 
 **Tech stack:** Python 3.12 · numpy · scipy · Three.js · unittest
 
@@ -51,9 +51,29 @@ The report engine is pure Python 3 standard library. The `astrodynamics/` high-f
 **High-fidelity astrodynamics layer (`astrodynamics/`, numpy/scipy):**
 - **Full 6-element orbital state** — classical elements ↔ Cartesian, robust Kepler solver
 - **Lambert transfer design** — universal-variable two-point boundary-value solver
-- **Porkchop launch windows** — real departure dates & Δv from approximate JPL ephemerides
-- **Perturbed propagation** — J2 oblateness, atmospheric drag, third-body on an adaptive DOP853 integrator
+- **Porkchop launch windows** — real departure dates from approximate JPL ephemerides, with an impulsive injection + capture Δv budget
+- **Perturbed propagation** — zonal gravity (J2–J6), banded exponential atmosphere, solar radiation pressure, and third-body on an adaptive DOP853 integrator
 - **Validated against JPL Horizons** — ephemeris to ~1300 km (Earth), propagation to ~14 km/week
+
+</details>
+
+<details>
+<summary><b>Fidelity &amp; Limitations</b></summary>
+
+<br>
+
+This is an **engineering-fidelity** astrodynamics engine, validated against textbook worked examples and live JPL Horizons vectors. It is deliberately **not** operational flight software — that bar is one of process and certification (DO-178C, NASA NPR 7150.2, independent V&V, real tracking-data pipelines), not code quality.
+
+**What is modeled:** two-body and perturbed dynamics with zonal gravity to degree 6 (J2–J6), a banded exponential atmosphere (Vallado Table 8-4), cannonball solar radiation pressure with a cylindrical shadow, third-body gravity, universal-variable Lambert targeting, porkchop launch-window search, and an impulsive injection/capture Δv budget. The mission Δv is **impulsive** — it excludes finite-burn and gravity losses, launch ascent, and entry/descent/landing.
+
+**Where higher fidelity would go next** (deliberately out of scope to keep the engine lightweight and dependency-light):
+
+- **Ephemerides** — JPL DE440 SPICE kernels for meter-level planetary positions (vs. the current Standish approximate model, ~sub-arcmin for the inner planets, 1800–2050).
+- **Gravity field** — full tesseral spherical-harmonic models (e.g. EGM2008 to 70×70+) beyond the zonal-only field here.
+- **Atmosphere** — NRLMSISE-00 / drag-temperature models driven by solar and geomagnetic indices.
+- **Navigation** — orbit determination (batch least-squares / Kalman filtering) over real tracking data.
+
+Each of these is data- or infrastructure-bound rather than a missing equation; they are the natural next tier for anyone extending the engine.
 
 </details>
 
@@ -136,7 +156,7 @@ astrodynamics/ (high-fidelity layer, numpy/scipy)
   integrators.py    scipy DOP853 adaptive propagation + conservation diagnostics
 
 solar_system.html   3D animation (Three.js, CDN)
-tests/              131 tests across 9 modules
+tests/              139 tests across 9 modules
 ```
 
 **Data flow:** `main.py` → `render_report()` → renderer → `collect_records()` → section builders → `calculations.py` (or, for the `mission` section, the `astrodynamics/` layer)
@@ -203,7 +223,7 @@ tests/              131 tests across 9 modules
 
 ```bash
 pip install -r requirements.txt           # numpy/scipy for the astrodynamics tests
-python3 -m unittest discover -s tests      # 131 tests
+python3 -m unittest discover -s tests      # 139 tests
 python3 -m unittest tests.test_calculations
 ```
 

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from typing import Iterable
 
 import numpy as np
 
@@ -79,8 +80,8 @@ def solve_transfer(
 def best_transfer(
     departure_planet: str,
     arrival_planet: str,
-    departure_jds,
-    tof_days_grid,
+    departure_jds: Iterable[float],
+    tof_days_grid: Iterable[float],
     mu: float = MU_SUN,
     prograde: bool = True,
 ) -> TransferOpportunity:

@@ -58,10 +58,12 @@ class StateVector:
 
     @property
     def r_mag(self) -> float:
+        """Position magnitude |r| (m)."""
         return float(np.linalg.norm(self.r))
 
     @property
     def v_mag(self) -> float:
+        """Speed |v| (m/s)."""
         return float(np.linalg.norm(self.v))
 
 

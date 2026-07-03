@@ -126,10 +126,18 @@ class TestMissionReportSection(unittest.TestCase):
         from report import collect_records
 
         records = collect_records("mission")
-        self.assertEqual(len(records), 7)
+        self.assertEqual(len(records), 10)
         by_label = {r.label: r for r in records}
         self.assertTrue(7.0 < by_label["Departure C3"].value_num < 25.0)
         self.assertTrue(120.0 <= by_label["Time of flight"].value_num <= 360.0)
+        # Impulsive Earth->Mars budget sits in the few-km/s range for each burn.
+        self.assertTrue(3.0 < by_label["Injection delta-v"].value_num < 5.0)
+        self.assertTrue(1.0 < by_label["Capture delta-v"].value_num < 4.0)
+        self.assertAlmostEqual(
+            by_label["Total mission delta-v"].value_num,
+            by_label["Injection delta-v"].value_num + by_label["Capture delta-v"].value_num,
+            places=2,
+        )
 
     def test_renders_in_all_formats(self):
         from report import render_report
@@ -140,16 +148,58 @@ class TestMissionReportSection(unittest.TestCase):
 
         import json
         payload = json.loads(render_report("mission", "json"))
-        self.assertEqual(len(payload["records"]), 7)
+        self.assertEqual(len(payload["records"]), 10)
 
         csv_out = render_report("mission", "csv")
-        self.assertEqual(csv_out.count("\n"), 7)  # header + 7 records, last line not trailing
+        self.assertEqual(csv_out.count("\n"), 10)  # header + 10 records, last line not trailing
 
     def test_all_section_unaffected(self):
         # The 'all' aggregation must still be exactly 38 records (mission excluded).
         from report import collect_records
 
         self.assertEqual(len(collect_records("all")), 38)
+
+
+class TestMissionDeltaV(unittest.TestCase):
+    def test_injection_matches_vis_viva(self):
+        # Curtis Sec. 8.8: injecting from a circular parking orbit onto a hyperbola with
+        # excess speed v_inf. Cross-check against the vis-viva hyperbola periapsis speed.
+        from astrodynamics.mission_design import injection_delta_v
+        from constants import EARTH_RADIUS, MU_EARTH
+
+        r = EARTH_RADIUS + 300e3
+        v_inf = 2943.0  # m/s, Curtis Earth->Mars departure example
+        dv = injection_delta_v(v_inf, MU_EARTH, r)
+        v_park = math.sqrt(MU_EARTH / r)
+        v_peri = math.sqrt(v_inf * v_inf + 2.0 * MU_EARTH / r)
+        self.assertAlmostEqual(dv, v_peri - v_park, places=6)
+        self.assertTrue(3.4e3 < dv < 3.8e3, f"injection dv = {dv}")  # ~3.6 km/s
+
+    def test_capture_circular_vs_elliptical(self):
+        # Capturing into a more eccentric orbit costs less delta-v (higher periapsis speed
+        # of the target orbit), so an elliptical capture is cheaper than a circular one.
+        from astrodynamics.mission_design import capture_delta_v
+        from constants import MARS_RADIUS, MU_MARS
+
+        r = MARS_RADIUS + 400e3
+        dv_circular = capture_delta_v(2500.0, MU_MARS, r, e_capture=0.0)
+        dv_elliptical = capture_delta_v(2500.0, MU_MARS, r, e_capture=0.5)
+        self.assertGreater(dv_circular, dv_elliptical)
+        self.assertGreater(dv_elliptical, 0.0)
+
+    def test_budget_totals(self):
+        from astrodynamics.mission_design import mission_delta_v
+        from astrodynamics.porkchop import TransferOpportunity
+
+        opp = TransferOpportunity(
+            departure_jd=0.0, arrival_jd=200.0, tof_days=200.0,
+            c3_km2_s2=9.0, v_inf_depart_km_s=3.0, v_inf_arrive_km_s=2.5,
+            total_v_inf_km_s=5.5,
+        )
+        budget = mission_delta_v(opp)
+        self.assertAlmostEqual(budget.total_m_s, budget.injection_m_s + budget.capture_m_s, places=6)
+        self.assertGreater(budget.injection_m_s, 0.0)
+        self.assertGreater(budget.capture_m_s, 0.0)
 
 
 if __name__ == "__main__":
