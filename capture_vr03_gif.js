@@ -10,13 +10,9 @@ const path = require('path');
 
 const WIDTH = 512;
 const HEIGHT = 320;             // 256x160 @2x — the portfolio orbit card's native aspect (8:5)
-const FRAMES = 180;             // one full pass = one revolution + 12 transits => seamless loop
-                                // (~15 frames/transit for smooth craft motion, ~2°/frame rotation)
-// The site drives phi/tau off `t`, incremented 0.011 per requestAnimationFrame — at a
-// standard 60fps that's 0.66 t/s, so phi (rate 0.12) completes one revolution in
-// 2*PI/(0.12*0.66) ~= 79.3s. FRAME_DELAY must reproduce that real-world pace, not an
-// arbitrary "smooth GIF" cadence, or the loop reads as sped up relative to the site.
-const FRAME_DELAY = Math.round((79.3 * 1000) / FRAMES);   // ~441ms/frame (~2.3 fps)
+// Frame count and delay are derived in vr03_orbit_capture.html from the site's real
+// phi/tau rates (one spacecraft transit per loop, at a real, smooth frame rate) —
+// read from there so the two files can't drift out of sync.
 
 async function main() {
   console.log('Launching browser...');
@@ -35,11 +31,14 @@ async function main() {
 
   const card = await page.$('#c');              // screenshot the bordered card, not the page
 
+  const FRAMES = await page.evaluate(() => window.FRAME_COUNT);
+  const FRAME_DELAY = await page.evaluate(() => window.FRAME_DELAY_MS);
+
   const frames = [];
   const sleep = ms => new Promise(r => setTimeout(r, ms));
 
   for (let i = 0; i < FRAMES; i++) {
-    await page.evaluate((idx, n) => window.renderFrame(idx, n), i, FRAMES);
+    await page.evaluate(idx => window.renderFrame(idx), i);
     frames.push(await card.screenshot({ type: 'png' }));
     process.stdout.write(`\r  orbit: frame ${i + 1}/${FRAMES}   `);
     await sleep(20);

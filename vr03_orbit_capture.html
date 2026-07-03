@@ -23,19 +23,33 @@
 // VR-03 orbit visual — copied verbatim from the Vedra Research site
 // (index.html drawOrbit + helpers) so the README GIF is pixel-faithful to the
 // project's thumbnail on the company website. drawOrbit itself is unchanged; the
-// only adaptation is how it's driven for a seamless loop:
-//   * both `phi` (whole-scene rotation) and `tau` (spacecraft transit fraction)
-//     are explicit parameters driven by renderFrame(i, count) as exact functions
-//     of the frame index, so frame `count` returns to frame 0 with no jump;
-//   * `phi` sweeps exactly one full revolution (+2π) over the loop and `tau`
-//     completes an integer number of transits (NTRANSITS) — the site's true
-//     transit-to-rotation cadence (~0.22 / (0.12/2π) ≈ 11.5, rounded to 12);
+// only adaptation is how it's driven for the capture loop:
+//   * the site increments `t += 0.011` per rAF tick; assuming 60fps that's
+//     SITE_T_RATE = 0.011*60 = 0.66 t-units/real-second, which gives the real
+//     rates of `phi` (whole-scene rotation) and `tau` (spacecraft transit
+//     fraction) below;
+//   * looping a full `phi` revolution (~79s of real site time) at a real frame
+//     rate would need ~1600 frames, so instead the loop is exactly one
+//     spacecraft transit (TRANSITS_PER_LOOP) — perfectly seamless for `tau`,
+//     smooth at GIF_FPS, and light. `phi` does NOT return to its start value at
+//     the loop point (it's a slow rotation, so this reads as a small scene cut
+//     rather than broken motion) — an intentional trade-off for a short, fluid
+//     loop over an exactly-seamless but glacial 79s one;
 //   * the scene is drawn in the site's native 256x160 logical space (ctx
 //     scaled 2x onto a 512x320 backing) so body sizes stay portfolio-true.
 // ---------------------------------------------------------------------------
 var GOLD='178,58,58', CRIM='178,58,58', GREY='140,140,147', BONE='#E8E3D6', BONE_RGB='232,227,214';
 var PHI0=0.6;       // base orientation (the site's own phi offset): Mars upper-left, Earth lower-right
-var NTRANSITS=12;   // spacecraft transits per full revolution — the site's true cadence
+
+var SITE_T_RATE=0.011*60;          // t-units/real-second, assuming the site runs rAF at 60fps
+var PHI_RATE=0.12*SITE_T_RATE;     // rad/real-second (site's phi = t*0.12 + 0.6)
+var TAU_RATE=0.22*SITE_T_RATE;     // transit-cycles/real-second (site's tau = t*0.22 % 1)
+
+var TRANSITS_PER_LOOP=1;           // one full spacecraft transit per GIF loop
+var GIF_FPS=24;
+var LOOP_SECONDS=TRANSITS_PER_LOOP/TAU_RATE;
+window.FRAME_COUNT=Math.round(LOOP_SECONDS*GIF_FPS);
+window.FRAME_DELAY_MS=Math.round(1000/GIF_FPS);
 
 function grid(ctx,W,H){
   ctx.strokeStyle='rgba(38,38,43,0.85)'; ctx.lineWidth=1;
@@ -99,22 +113,21 @@ var stage=document.getElementById('c');
 var ctx=stage.getContext('2d');
 ctx.scale(2,2);   // backing 512x320, scene drawn in logical 256x160 (portfolio-native)
 
-// Render frame i of `count`. One full pass is exactly one revolution of the whole
-// configuration (phi sweeps +2π) and NTRANSITS spacecraft transits — both exact
-// functions of i/count, so frame `count` lands back on frame 0 with no jump. The
-// craft's `env` still fades it at each tau wrap, so the per-transit seam is clean
-// too. clearRect (not a solid fill) lets the CSS gradient panel show through,
+// Render frame i, i in [0, FRAME_COUNT). tReal is real elapsed seconds at GIF_FPS,
+// so phi/tau match the site's actual real-time pace exactly. tau completes exactly
+// TRANSITS_PER_LOOP cycles over the loop (seamless); phi does not wrap (see header
+// comment). clearRect (not a solid fill) lets the CSS gradient panel show through,
 // matching the portfolio card. Called by the puppeteer capture script.
-window.renderFrame=function(i,count){
-  var f=i/count;
-  var phi=PHI0+2*Math.PI*f;     // one full seamless revolution
-  var tau=(f*NTRANSITS)%1;      // NTRANSITS seamless spacecraft transits
+window.renderFrame=function(i){
+  var tReal=i/GIF_FPS;
+  var phi=PHI0+PHI_RATE*tReal;
+  var tau=((TAU_RATE*tReal)%1+1)%1;
   ctx.clearRect(0,0,256,160);
   drawOrbit(ctx,256,160,phi,tau);
 };
 
 // Initial frame so a plain open shows something.
-window.renderFrame(0,50);
+window.renderFrame(0);
 </script>
 </body>
 </html>
