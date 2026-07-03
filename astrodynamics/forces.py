@@ -139,8 +139,6 @@ def srp_acceleration(
     d_sun = float(np.linalg.norm(sat_to_sun))
     u_sun = sat_to_sun / d_sun
 
-    # Cylindrical shadow: the satellite is eclipsed when it sits behind the body (on the
-    # anti-Sun side) and within one body radius of the Sun-line.
     sun_hat = r_sun / float(np.linalg.norm(r_sun))
     along = float(np.dot(r_sat, sun_hat))
     perp = float(np.linalg.norm(r_sat - along * sun_hat))

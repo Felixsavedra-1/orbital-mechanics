@@ -70,7 +70,7 @@ class DeltaVBudget:
 
     injection_m_s: float   # parking orbit -> departure hyperbola
     capture_m_s: float     # arrival hyperbola -> capture orbit
-    total_m_s: float       # injection + capture
+    total_m_s: float
 
 
 def mission_delta_v(

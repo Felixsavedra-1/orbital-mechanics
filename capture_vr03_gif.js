@@ -10,9 +10,13 @@ const path = require('path');
 
 const WIDTH = 512;
 const HEIGHT = 320;             // 256x160 @2x — the portfolio orbit card's native aspect (8:5)
-const FRAME_DELAY = 60;         // ms between frames (~16.7 fps), same cadence as capture_gif.js
 const FRAMES = 180;             // one full pass = one revolution + 12 transits => seamless loop
                                 // (~15 frames/transit for smooth craft motion, ~2°/frame rotation)
+// The site drives phi/tau off `t`, incremented 0.011 per requestAnimationFrame — at a
+// standard 60fps that's 0.66 t/s, so phi (rate 0.12) completes one revolution in
+// 2*PI/(0.12*0.66) ~= 79.3s. FRAME_DELAY must reproduce that real-world pace, not an
+// arbitrary "smooth GIF" cadence, or the loop reads as sped up relative to the site.
+const FRAME_DELAY = Math.round((79.3 * 1000) / FRAMES);   // ~441ms/frame (~2.3 fps)
 
 async function main() {
   console.log('Launching browser...');
@@ -27,7 +31,7 @@ async function main() {
 
   const htmlPath = path.resolve(__dirname, 'vr03_orbit_capture.html');
   await page.goto(`file://${htmlPath}`);
-  await new Promise(r => setTimeout(r, 300));   // let fonts/canvas settle
+  await new Promise(r => setTimeout(r, 300));
 
   const card = await page.$('#c');              // screenshot the bordered card, not the page
 

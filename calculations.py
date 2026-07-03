@@ -6,13 +6,15 @@ _M_PER_KM = 1000.0
 _S_PER_HOUR = 3600.0
 
 
+def require_positive_finite(name: str, value: float) -> None:
+    if not math.isfinite(value) or value <= 0:
+        raise ValueError(f"{name} must be a finite positive number")
+
+
 def _validate_inputs(radius_m: float, central_mass_kg: float, gravitational_constant: float) -> None:
-    if not math.isfinite(radius_m) or radius_m <= 0:
-        raise ValueError("radius_m must be a finite positive number")
-    if not math.isfinite(central_mass_kg) or central_mass_kg <= 0:
-        raise ValueError("central_mass_kg must be a finite positive number")
-    if not math.isfinite(gravitational_constant) or gravitational_constant <= 0:
-        raise ValueError("gravitational_constant must be a finite positive number")
+    require_positive_finite("radius_m", radius_m)
+    require_positive_finite("central_mass_kg", central_mass_kg)
+    require_positive_finite("gravitational_constant", gravitational_constant)
 
 
 def calculate_orbital_velocity(
@@ -78,8 +80,7 @@ def calculate_vis_viva_velocity(
         ValueError: If inputs are non-positive, non-finite, or 2/r - 1/a < 0.
     """
     _validate_inputs(r_m, central_mass_kg, gravitational_constant)
-    if not math.isfinite(semi_major_axis_m) or semi_major_axis_m <= 0:
-        raise ValueError("semi_major_axis_m must be a finite positive number")
+    require_positive_finite("semi_major_axis_m", semi_major_axis_m)
     discriminant = 2.0 / r_m - 1.0 / semi_major_axis_m
     if discriminant < 0:
         raise ValueError(
@@ -104,8 +105,7 @@ def calculate_hohmann_delta_v(
         ValueError: If r1_m, r2_m, central_mass_kg, or gravitational_constant are <= 0 or non-finite.
     """
     _validate_inputs(r1_m, central_mass_kg, gravitational_constant)
-    if not math.isfinite(r2_m) or r2_m <= 0:
-        raise ValueError("r2_m must be a finite positive number")
+    require_positive_finite("r2_m", r2_m)
     a = (r1_m + r2_m) / 2.0
     dv1 = (
         calculate_vis_viva_velocity(r1_m, a, central_mass_kg, gravitational_constant)
@@ -130,6 +130,5 @@ def calculate_mass_ratio(delta_v_ms: float, isp_s: float) -> float:
     """
     if not math.isfinite(delta_v_ms) or delta_v_ms < 0:
         raise ValueError("delta_v_ms must be a finite non-negative number")
-    if not math.isfinite(isp_s) or isp_s <= 0:
-        raise ValueError("isp_s must be a finite positive number")
+    require_positive_finite("isp_s", isp_s)
     return math.exp(delta_v_ms / (isp_s * STANDARD_GRAVITY))

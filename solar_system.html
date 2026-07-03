@@ -830,7 +830,6 @@ function setPanel(html) {
   panelEl.classList.toggle('on', !!html);
 }
 
-// Body picker box (top-right) — a stable way to inspect a moving planet
 // Lists the Sun + eight planets; each entry routes to SolarView.focusOn via
 // focusByName, so a name click zooms in exactly like clicking the body itself.
 const bodyNavEl = document.getElementById('body-nav');
@@ -871,7 +870,6 @@ const bodyNav = {
 };
 bodyNav.build(['Sun', ...EPHEMERIS.planets.map((p) => p.name)]);
 
-// Texture loader
 // Maps load async — bodies keep their base colour until the image arrives, and a
 // failed load degrades to that flat colour instead of going blank.
 // Colour maps are tagged sRGB so the filmic pipeline decodes them correctly;
@@ -2970,7 +2968,6 @@ missionCta.addEventListener('click', () => {
   v.director.start();
 });
 
-// Speed control
 const speedInput = document.getElementById('speed');
 const speedLabel = document.getElementById('speedVal');
 speedInput.addEventListener('input', () => {
@@ -3012,7 +3009,6 @@ function syncZoomSlider() {
   zoomInput.value = sliderFromDist(_zoomV.length());
 }
 
-// Resize
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
@@ -3020,7 +3016,6 @@ window.addEventListener('resize', () => {
   composer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// Boot
 manager.switchTo('solar', true);   // home view, no camera animation on load
 
 function animate() {
@@ -3071,10 +3066,8 @@ animate();
     var e=(k-1)/(k+1), p=1*(1+e);                     // transfer ellipse, Sun at focus, perihelion=Earth
     var phi=t*0.12+0.6;                               // slow revolution of the whole configuration
     function sx(nx){return cx+nx*UX;} function sy(ny){return cy+ny*UY;}
-    // orbits
     ctx.beginPath();ctx.ellipse(cx,cy,UX,UY,0,0,Math.PI*2);ctx.strokeStyle='rgba('+GREY+',0.30)';ctx.lineWidth=1;ctx.stroke();
     ctx.beginPath();ctx.ellipse(cx,cy,k*UX,k*UY,0,0,Math.PI*2);ctx.strokeStyle='rgba('+GREY+',0.20)';ctx.lineWidth=1;ctx.stroke();
-    // Sun at focus
     glow(ctx,cx,cy,18,GOLD,0.5); dot(ctx,cx,cy,3,'rgba('+GOLD+',0.95)'); ring(ctx,cx,cy,6,'rgba('+GOLD+',0.28)');
     // planned transfer trajectory (dashed arc, perihelion at Earth -> aphelion at Mars)
     ctx.save();ctx.setLineDash([4,4]);ctx.beginPath();
@@ -3084,7 +3077,6 @@ animate();
     // Earth at departure node
     var eX=sx(Math.cos(phi)),eY=sy(Math.sin(phi));
     glow(ctx,eX,eY,7,BONE_RGB,0.45); dot(ctx,eX,eY,2.6,BONE); ring(ctx,eX,eY,5,'rgba(232,227,214,0.30)');
-    // Mars at arrival node
     var mX=sx(-k*Math.cos(phi)),mY=sy(-k*Math.sin(phi));
     glow(ctx,mX,mY,9,GOLD,0.55); dot(ctx,mX,mY,2.8,'rgba('+GOLD+',0.95)'); ring(ctx,mX,mY,5.5,'rgba('+GOLD+',0.30)');
     // spacecraft in transit

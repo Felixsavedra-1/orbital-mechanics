@@ -77,6 +77,11 @@ def _require_mu(mu: float) -> None:
         raise ValueError(f"mu must be a finite positive number; got {mu}")
 
 
+def _require_semi_major_axis(a: float) -> None:
+    if not math.isfinite(a) or a <= 0.0:
+        raise ValueError(f"semi-major axis a must be finite and positive; got {a}")
+
+
 def solve_kepler(mean_anomaly: float, e: float, tol: float = 1e-12, max_iter: int = 100) -> float:
     """Solve Kepler's equation M = E - e*sin(E) for eccentric anomaly E (rad).
 
@@ -148,11 +153,10 @@ def elements_to_state(elements: OrbitalElements, mu: float) -> StateVector:
     """
     _require_mu(mu)
     _require_eccentricity(elements.e)
-    if not math.isfinite(elements.a) or elements.a <= 0.0:
-        raise ValueError(f"semi-major axis a must be finite and positive; got {elements.a}")
+    _require_semi_major_axis(elements.a)
 
     a, e, nu = elements.a, elements.e, elements.nu
-    p = a * (1.0 - e * e)  # semi-latus rectum
+    p = a * (1.0 - e * e)
     r_mag = p / (1.0 + e * math.cos(nu))
 
     # Perifocal (PQW) frame: periapsis along +P, motion toward +Q.
@@ -259,12 +263,11 @@ def propagate_kepler(elements: OrbitalElements, dt: float, mu: float) -> Orbital
     """
     _require_mu(mu)
     _require_eccentricity(elements.e)
-    if not math.isfinite(elements.a) or elements.a <= 0.0:
-        raise ValueError(f"semi-major axis a must be finite and positive; got {elements.a}")
+    _require_semi_major_axis(elements.a)
     if not math.isfinite(dt):
         raise ValueError("dt must be finite")
 
-    n_motion = math.sqrt(mu / elements.a**3)  # mean motion (rad/s)
+    n_motion = math.sqrt(mu / elements.a**3)
     E0 = eccentric_from_true(elements.nu, elements.e)
     M0 = mean_from_eccentric(E0, elements.e)
     E1 = solve_kepler(M0 + n_motion * dt, elements.e)

@@ -1,5 +1,6 @@
 import math
 
+from calculations import require_positive_finite
 from constants import G
 
 _State = tuple[float, float, float, float]  # (x_m, y_m, vx_ms, vy_ms)
@@ -52,14 +53,11 @@ def propagate_two_body(
         ValueError: If central_mass_kg <= 0, dt_s <= 0, n_steps < 1,
                     gravitational_constant <= 0, or r=0 encountered during integration.
     """
-    if not math.isfinite(central_mass_kg) or central_mass_kg <= 0:
-        raise ValueError("central_mass_kg must be a finite positive number")
-    if not math.isfinite(dt_s) or dt_s <= 0:
-        raise ValueError("dt_s must be a finite positive number")
+    require_positive_finite("central_mass_kg", central_mass_kg)
+    require_positive_finite("dt_s", dt_s)
     if n_steps < 1:
         raise ValueError("n_steps must be >= 1")
-    if not math.isfinite(gravitational_constant) or gravitational_constant <= 0:
-        raise ValueError("gravitational_constant must be a finite positive number")
+    require_positive_finite("gravitational_constant", gravitational_constant)
 
     GM = gravitational_constant * central_mass_kg
     state: _State = (x0_m, y0_m, vx0_ms, vy0_ms)

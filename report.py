@@ -59,7 +59,7 @@ def _metric(section: str, label: str, value_num: float, unit: str,
                         round(value_num, decimals), unit, note)
 
 
-_YEARS_THRESHOLD_DAYS = 365.25 * 2  # display in years for periods ≥ 2 Earth years
+_YEARS_THRESHOLD_DAYS = 365.25 * 2
 
 
 def _format_period(period_hours: float) -> tuple[str, str]:
@@ -75,7 +75,6 @@ def _format_period(period_hours: float) -> tuple[str, str]:
 
 
 def _body_orbit_records(section: str, bodies: list[OrbitalBody]) -> list[MetricRecord]:
-    """Build velocity + period MetricRecords for a list of orbital bodies."""
     records = []
     for body in bodies:
         velocity_km = calculate_orbital_velocity(body.orbital_radius_m, body.central_mass_kg)
@@ -252,7 +251,6 @@ def _format_text_metric(record: MetricRecord) -> str:
 
 
 def render_text(section: str) -> str:
-    """Render the report as human-readable text grouped by section."""
     records = collect_records(section)
     lines = [f"--{REPORT_TITLE}--", "Project Summary: orbital data and conceptual mission planning"]
     active_sections = SECTION_ORDER if section == "all" else [section]
@@ -297,7 +295,6 @@ def render_json(section: str) -> str:
 
 
 def render_csv(section: str) -> str:
-    """Render the report as CSV with one row per metric record."""
     records = collect_records(section)
     output = StringIO()
     writer = csv.writer(output)

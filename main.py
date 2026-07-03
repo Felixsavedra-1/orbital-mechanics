@@ -5,7 +5,6 @@ from report import VALID_OUTPUT_FORMATS, VALID_SECTIONS, render_report
 
 
 def parse_args():
-    """Parse command-line arguments (section, format, output path)."""
     parser = argparse.ArgumentParser(
         description="Orbital mechanics simulator and space exploration report."
     )
@@ -30,7 +29,6 @@ def parse_args():
 
 
 def main():
-    """Render the requested report and write it to the output path or stdout."""
     args = parse_args()
     report_body = render_report(args.section, args.format)
 

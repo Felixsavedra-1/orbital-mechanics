@@ -22,8 +22,6 @@ async function main() {
 
   const htmlPath = path.resolve(__dirname, 'solar_system.html');
   await page.goto(`file://${htmlPath}`);
-
-  // Wait for Three.js scene to initialize
   await new Promise(r => setTimeout(r, 2000));
 
   // Calm, readable pace — 1.0× is the dashboard's natural default speed
@@ -48,7 +46,6 @@ async function main() {
     console.log();
   }
 
-  // Moon — Earth / Moon / ISS.
   await switchTo('moon');
   await grab('moon', 22);
 
@@ -63,7 +60,6 @@ async function main() {
   await page.evaluate(() => { controls.autoRotateSpeed = 0.22; });
   await grab('solar (Jupiter)', 30);
 
-  // Mars — heliocentric Earth → Moon → Mars transfer corridor.
   await switchTo('mars');
   await grab('mars', 18);
 

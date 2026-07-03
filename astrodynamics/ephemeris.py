@@ -19,7 +19,7 @@ import datetime as _dt
 import math
 
 from constants import AU, MU_SUN
-from astrodynamics.state import OrbitalElements, StateVector, elements_to_state, true_from_eccentric
+from astrodynamics.state import OrbitalElements, StateVector, elements_to_state, solve_kepler, true_from_eccentric
 
 # Standard epoch J2000.0 = 2000-01-01 12:00 TT.
 J2000_JD = 2451545.0
@@ -121,7 +121,7 @@ def planet_elements(name: str, jd: float) -> OrbitalElements:
     long_peri = base[4] + rate[4] * t
     long_node = base[5] + rate[5] * t
 
-    argp_deg = long_peri - long_node           # omega = perihelion - node
+    argp_deg = long_peri - long_node
     mean_anom_deg = (mean_longitude - long_peri + 180.0) % 360.0 - 180.0  # wrap to [-180,180)
 
     E = _solve_kepler_deg(mean_anom_deg, e)
@@ -139,8 +139,6 @@ def planet_elements(name: str, jd: float) -> OrbitalElements:
 
 def _solve_kepler_deg(mean_anom_deg: float, e: float) -> float:
     """Kepler solve with the mean anomaly supplied in degrees; returns E (rad)."""
-    from astrodynamics.state import solve_kepler
-
     return solve_kepler(math.radians(mean_anom_deg), e)
 
 
