@@ -782,6 +782,13 @@ const _XAXIS = new THREE.Vector3(1, 0, 0);
 const _camAnchor = new THREE.Vector3();   // live subject position for the chase camera
 const _chaseV    = new THREE.Vector3();   // scratch for the chase camera's desired pose
 const _zoomV     = new THREE.Vector3();   // scratch for the zoom-slider dolly
+const _camOff    = new THREE.Vector3();   // scratch for the follow re-frame arc
+const _camAxis   = new THREE.Vector3();
+const _camPivot  = new THREE.Vector3();
+// Follow-camera re-frame pacing: cap how fast a phase entry may swing the view
+// around the subject and how fast it may dolly, so every re-frame reads as a glide.
+const CAM_SWEEP_RATE = 1.1;   // rad/s around the subject
+const CAM_DOLLY_RATE = 60;    // scene units/s toward/away from it
 const _IDENTITY_Q = new THREE.Quaternion();   // upright touchdown orientation (nose +Y)
 
 // Build a Mission-Plan follow-camera descriptor: the camera locks onto the moving
@@ -1573,7 +1580,27 @@ class MissionDirector {
   _enter(i) {
     this.idx = i; this.t = 0;
     const ph = this.phases[i];
+    // Attitude continuity across the seat: remember the incoming nose, let the phase
+    // pose itself, then blend out of the old attitude over a window sized by the
+    // gap — phases whose entry is already continuous see a no-op.
+    const craft = this.view.planCraft && this.view.planCraft();
+    const blendFrom = craft && i > 0;
+    if (blendFrom) (this._entryQ || (this._entryQ = new THREE.Quaternion())).copy(craft.quaternion);
     this.view.runPhase(i, 0);          // seat the craft at the phase's start pose so
+    this._blend = 0;
+    if (blendFrom) {
+      const gap = this._entryQ.angleTo(craft.quaternion);
+      if (gap > 0.02) {
+        this._blend = Math.min(Math.max(gap / 2.2, 0.25), 1.2);   // ~126°/s, 0.25–1.2 s
+        this._blendT = 0;                      // real seconds — the slew never speeds up
+        // Keep the correction as a world-frame offset that decays to identity: a
+        // slerp toward the phase's (moving) pose can cross the 180° seam mid-blend
+        // and kick the nose; a shrinking fixed offset cannot.
+        (this._offQ || (this._offQ = new THREE.Quaternion()))
+          .copy(craft.quaternion).invert().premultiply(this._entryQ);
+        craft.quaternion.copy(this._entryQ);   // the seat frame keeps the incoming attitude
+      }
+    }
     if (ph.cam) this.view.planCamera(ph.cam(this.view));   // the entry framing reads it
     missionUI.render(this);
   }
@@ -1584,6 +1611,13 @@ class MissionDirector {
     this.t += dt * rate;
     this.elapsed += dt * rate;
     this.view.runPhase(this.idx, Math.min(this.t / ph.dur, 1), dt, speed);
+    if (this._blend > 0) {             // still easing out of the previous attitude
+      this._blendT += dt;
+      const w = _smooth01(this._blendT / this._blend);
+      _qb.identity().slerp(this._offQ, 1 - w);
+      this.view.planCraft().quaternion.premultiply(_qb);
+      if (w >= 1) this._blend = 0;
+    }
     missionUI.progress(this);
     if (this.t >= ph.dur) {
       if (this.idx < this.phases.length - 1) this._enter(this.idx + 1);
@@ -2015,6 +2049,8 @@ class EarthMoonView extends View {
   }
   // Live world position of the Starship — the subject the follow camera tracks.
   shipWorld() { return this.ship.getWorldPosition(_camAnchor); }
+  // The object whose attitude the director's phase-entry blend drives.
+  planCraft() { return this.ship; }
   // Unit direction of travel — the ship flies nose-first, so its world +Y axis.
   shipHeading() { return _headV.set(0, 1, 0).applyQuaternion(this.ship.getWorldQuaternion(_headQ)); }
   planCamera(cam) {
@@ -2229,7 +2265,7 @@ class MarsView extends View {
       { title: 'Orbital Refueling', sub: 'Tanker rendezvous & transfer', dur: 5,
         dv: '≈ 1,200 t propellant',
         detail: 'Tankers top off Starship in LEO. In-orbit refilling is the keystone — it is what makes a fully-fuelled departure stack possible at all.',
-        cam: (v) => trackCam(() => v.craftWorld(), 11, 3, 14, 0.5, 1500, -1.6) },
+        cam: (v) => trackCam(() => v.craftWorld(), 11, 3, 14, 0.5, 1500, 1.75) },
       { title: 'Lunar Staging', sub: 'Transit to the Moon', dur: 5,
         dv: 'Δv ≈ 3.9 km/s',
         detail: 'Starship transits to the Moon and lands — proving crewed deep-space operations and consolidating propellant and crew before the interplanetary leg.',
@@ -2435,24 +2471,28 @@ class MarsView extends View {
     this.mars.position.copy(lerp(this.marsPts));
     this.craft.position.copy(lerp(this.craftPts));
     // The raw arc converges on *both* planets' centres (real ephemeris vs exaggerated
-    // globes) — inside Earth for the first ~15% and inside Mars for the last ~20%.
-    // Pin the rendered craft to a standoff shell around each; returns how deeply the
-    // raw point was buried (0..1) and leaves the radial-out direction in _v5.
-    const pin = (body, shellR, fa, fb) => {
+    // globes) — inside Earth for the first ~15%, and the compressed frame keeps it
+    // within Mars's shell range from roughly halfway out. Pin the rendered craft to a
+    // standoff shell around each; the Mars pin is progress-gated (0 until 0.55, full
+    // by 0.8) so the cruise rides the raw arc and the shell only takes over on
+    // approach. Returns the pin weight (0..1); radial-out direction is left in _v5.
+    const pin = (body, shellR, fa, fb, g = 1) => {
+      if (g <= 0) return 0;
       const rel = _v6.copy(this.craft.position).sub(body);
       let d = rel.length();
       if (d >= 2 * shellR) return 0;      // outside the attitude-blend range too
       if (d < 1e-6) { rel.copy(fa).sub(fb); d = 0; }      // departure/approach corridor
       rel.normalize();
-      if (d < shellR) this.craft.position.copy(body).addScaledVector(rel, shellR);
+      if (d < shellR) this.craft.position.lerp(_v4.copy(body).addScaledVector(rel, shellR), g);
       _v5.copy(rel);
       // The aim bias keeps a radial-out component until *twice* the shell, so the
       // nose eases off the globe-hugging slide instead of whipping to the tangent.
-      return 1 - d / (2 * shellR);
+      return (1 - d / (2 * shellR)) * g;
     };
     const w = Math.max(
       pin(this.earth.position, this.earthShellR, this.craftPts[1], this.earthPts[1]),
-      pin(this.mars.position, this.marsShellR, this.craftPts[last - 1], this.marsPts[last - 1])
+      pin(this.mars.position, this.marsShellR, this.craftPts[last - 1], this.marsPts[last - 1],
+          _smooth01((f / last - 0.55) / 0.25))
     );
     if (w > 0) (this._pinDir || (this._pinDir = new THREE.Vector3())).copy(_v5);
     return w;
@@ -2475,6 +2515,13 @@ class MarsView extends View {
     if (_v6.lengthSq() < 1e-10) return;            // holding still — keep the attitude
     _v6.normalize();
     if (radialW > 0 && this._pinDir) _v6.lerp(this._pinDir, _smooth01(radialW)).normalize();
+    // Exponentially smooth the estimate — raw per-frame differences tick between
+    // polyline samples (~1.5° kinks); a ~0.12 s horizon averages them out.
+    if (dt > 0) {
+      const dir = this._aimDir || (this._aimDir = _v6.clone());
+      dir.lerp(_v6, 1 - Math.exp(-dt / 0.12)).normalize();
+      _v6.copy(dir);
+    }
     _qa.copy(this.craft.quaternion);
     this.craft.lookAt(_v2.copy(pos).add(_v6));
     this.craft.rotateX(Math.PI / 2);
@@ -2518,7 +2565,7 @@ class MarsView extends View {
     this.moonPivot.rotation.y += 0.6 * speed * dt;
     const wrapped = this.progress + 0.06 * speed * dt >= 1;
     this.progress = (this.progress + 0.06 * speed * dt) % 1;
-    if (wrapped) this._aimPrev = null;             // loop restart teleports the craft
+    if (wrapped) this._aimPrev = this._aimDir = null;   // loop restart teleports the craft
     this._aimCraft(dt, this._placeFlight(this.progress));
     this.craft.userData.plume.userData.fade = 1;               // never inherit a tapered burn
     this.craft.userData.plume.visible = this.progress < 0.2;   // departure burn
@@ -2543,7 +2590,7 @@ class MarsView extends View {
     this.craft.scale.setScalar(0.5);
     this.tanker.scale.setScalar(0.5);              // Mars depot phases bump it to craftScale
     this.progress = 0;
-    this._aimPrev = null;                          // staging teleports the craft off the arc
+    this._aimPrev = this._aimDir = null;           // staging teleports the craft off the arc
     this._parkAMars = -0.4;                        // parking slot; normally re-set by phase 0
     // TMI hold: a fixed Earth-relative slot on the corridor just past the Moon's
     // orbit radius — decoupled from the live Moon so the burn and merge sit still.
@@ -2557,7 +2604,7 @@ class MarsView extends View {
   }
   onPlanStop(restoreCam) {
     this.craft.scale.setScalar(this.craftScale);
-    this._aimPrev = null;                          // ambient resumes from a different pose
+    this._aimPrev = this._aimDir = null;           // ambient resumes from a different pose
     this.tanker.visible = false;
     this.fuelLink.visible = false;
     this.activeStep = -1;                          // ambient panel rebuilds
@@ -2566,6 +2613,8 @@ class MarsView extends View {
   }
   // Live world position of the Starship — the subject the follow camera tracks.
   craftWorld() { return this.craft.getWorldPosition(_camAnchor); }
+  // The object whose attitude the director's phase-entry blend drives.
+  planCraft() { return this.craft; }
   // Unit direction of travel — the craft flies nose-first, so its world +Y axis.
   craftHeading() { return _headV.set(0, 1, 0).applyQuaternion(this.craft.getWorldQuaternion(_headQ)); }
   planCamera(cam) {
@@ -2636,9 +2685,10 @@ class MarsView extends View {
           const from = this._descentFrom || _v0.copy(moon).add(_v2.set(0, this.moonRMars + 7, 0));
           const land = _v1.copy(moon).add(_v3.set(0, this.moonRMars + 0.8, 0));
           craft.position.copy(from).lerp(land, k);
-          // Ease from the approach attitude to upright (settle just before contact).
+          // Ease from the approach attitude to upright across the whole descent —
+          // on raw progress, not the eased k, so the swing rate stays low mid-drop.
           const q0 = this._descentQ || _IDENTITY_Q;
-          craft.quaternion.copy(q0).slerp(_IDENTITY_Q, Math.min(k * 1.3, 1));
+          craft.quaternion.copy(q0).slerp(_IDENTITY_Q, _smooth01((p - 0.7) / 0.3));
           plume.userData.fade = 1 - _smooth01((k - 0.55) / 0.45);   // retro burn tapers to touchdown
           plume.visible = plume.userData.fade > 0.02;
         }
@@ -2838,9 +2888,21 @@ const manager = {
     }
     if (this.follow && this._userZoomed)
       to.setLength(Math.max(camera.position.distanceTo(anchor), controls.minDistance));
+    // First follow of a plan: the camera is still parked on the tab framing, so the
+    // look-target eases over from wherever it was instead of snapping to the ship.
+    // Same if the previous follow's target-ease is still in flight (fast phases can
+    // end before it lands) — pick up from the current target, never snap it.
+    const fromTgt = (!this.follow || (this.follow.ease && this.follow.ease.fromTgt))
+      ? controls.target.clone() : null;
+    const from = camera.position.clone().sub(fromTgt ?? anchor);
+    // Pace the re-frame by how far it actually swings/dollies — a broadside flip or
+    // the plan-start dolly becomes a deliberate glide, a small nudge stays snappy —
+    // capped so even an approach from the tab framing never eats half a phase.
+    const dur = Math.min(2.5, Math.max((cam.tau ?? 0.6) * 1.6,
+                         from.angleTo(to) / CAM_SWEEP_RATE,
+                         Math.abs(from.length() - to.length()) / CAM_DOLLY_RATE));
     this.follow = { anchor: track, prev: anchor.clone(),
-                    ease: { from: camera.position.clone().sub(anchor), to: to.clone(),
-                            t: 0, dur: (cam.tau ?? 0.6) * 1.6 } };   // phase tau paces the re-frame
+                    ease: { from, to: to.clone(), fromTgt, t: 0, dur } };
   },
   stopFollow() { this.follow = null; controls.enablePan = true; },
   // Ease back out to the view's default framing and stop the turntable.
@@ -2882,7 +2944,23 @@ const manager = {
         f.ease.t += dt / f.ease.dur;
         const k = Math.min(f.ease.t, 1);
         const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
-        camera.position.copy(anchor).add(_chaseV.lerpVectors(f.ease.from, f.ease.to, e));
+        // Arc around the subject rather than cutting a straight chord past it:
+        // the offset direction slerps and its length lerps, so bearing and distance
+        // each change monotonically and the eye never dives through the near field.
+        const o0 = f.ease.from, o1 = f.ease.to;
+        _camOff.copy(o0).normalize();
+        const ang = _camOff.angleTo(_v0.copy(o1).normalize());
+        if (ang > 1e-4) {
+          _camAxis.crossVectors(_camOff, _v0);
+          if (_camAxis.lengthSq() < 1e-10)   // anti-parallel: swing over the top
+            _camAxis.crossVectors(_camOff, Math.abs(_camOff.y) < 0.9 ? _YAXIS : _XAXIS);
+          _camOff.applyAxisAngle(_camAxis.normalize(), ang * e);
+        }
+        _camOff.multiplyScalar(o0.length() + (o1.length() - o0.length()) * e);
+        // Plan start also eases the look-target over from the previous framing.
+        const pivot = f.ease.fromTgt ? _camPivot.lerpVectors(f.ease.fromTgt, anchor, e) : anchor;
+        camera.position.copy(pivot).add(_camOff);
+        controls.target.copy(pivot);
         if (k >= 1) f.ease = null;
       }
       controls.update();
@@ -2892,7 +2970,8 @@ const manager = {
         _chaseV.copy(camera.position).sub(o.c);
         const len = _chaseV.length();
         if (len < o.r) {
-          camera.position.copy(o.c).addScaledVector(len > 1e-6 ? _chaseV.divideScalar(len) : _YAXIS, o.r);
+          _camOff.copy(o.c).addScaledVector(len > 1e-6 ? _chaseV.divideScalar(len) : _YAXIS, o.r);
+          camera.position.lerp(_camOff, 1 - Math.exp(-8 * dt));   // push out, don't teleport
           camera.lookAt(controls.target);
         }
       }

@@ -2,6 +2,17 @@
 
 ![Orbital dashboard — Moon · Solar System · Mars views](dashboard.gif)
 
+<table width="100%">
+<tr>
+<td width="50%" align="center">
+  <img src="moon-mission.gif" width="100%" alt="Moon mission plan — Starship lunar sequence: liftoff, orbital refueling, trans-lunar injection, lunar landing" />
+</td>
+<td width="50%" align="center">
+  <img src="mars-mission.gif" width="100%" alt="Mars mission plan — Earth→Mars transfer: ascent, refueling, trans-Mars injection, cruise, Mars orbit insertion" />
+</td>
+</tr>
+</table>
+
 > Physics-based orbital mechanics engine — 8 planets, real mission planning, and a live 3D visualization driven by the same data.
 
 <p align="center">
