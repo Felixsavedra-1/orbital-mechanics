@@ -6,9 +6,15 @@
 <tr>
 <td width="50%" align="center">
   <img src="moon-mission.gif" width="100%" alt="Moon mission plan — Starship lunar sequence: liftoff, orbital refueling, trans-lunar injection, lunar landing" />
+
+$\color{Crimson}{\textbf{\textsf{Mission plan: Moon}}}$
+
 </td>
 <td width="50%" align="center">
   <img src="mars-mission.gif" width="100%" alt="Mars mission plan — Earth→Mars transfer: ascent, refueling, trans-Mars injection, cruise, Mars orbit insertion" />
+
+$\color{Crimson}{\textbf{\textsf{Mission plan: Mars}}}$
+
 </td>
 </tr>
 </table>
