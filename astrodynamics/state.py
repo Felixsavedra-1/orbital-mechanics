@@ -1,10 +1,8 @@
-"""Orbital state core: classical elements <-> Cartesian state, and Kepler propagation.
+"""Classical elements <-> Cartesian state, and analytic Kepler propagation.
 
-SI units (meters, seconds, radians), inertial frame whose +Z axis is the reference-plane
-normal (ecliptic pole for heliocentric work, ECI for Earth). Conventions follow Curtis,
-*Orbital Mechanics for Engineering Students* (Algorithms 4.1 and 4.5) and Vallado,
-*Fundamentals of Astrodynamics and Applications* (RV2COE/COE2RV). Only elliptical orbits
-(0 <= e < 1) are supported; hyperbolic transfers are handled by the Lambert solver.
+SI units, radians; inertial frame with +Z along the reference-plane normal. Follows
+Curtis, *Orbital Mechanics for Engineering Students*, Algorithms 4.1/4.5. Elliptical
+orbits only (0 <= e < 1); hyperbolic transfers are handled by the Lambert solver.
 """
 
 from __future__ import annotations
@@ -14,9 +12,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
-# Below these thresholds an orbit is treated as circular / equatorial, where the
-# corresponding angle (argp / raan) is mathematically undefined and folded into the
-# anomaly per the standard convention. Chosen well above float64 noise.
+# Below these an orbit is treated as circular / equatorial (argp / raan undefined,
+# folded into the anomaly); chosen well above float64 noise.
 _CIRCULAR_TOL = 1e-11
 _EQUATORIAL_TOL = 1e-11
 _TWO_PI = 2.0 * math.pi
@@ -58,12 +55,10 @@ class StateVector:
 
     @property
     def r_mag(self) -> float:
-        """Position magnitude |r| (m)."""
         return float(np.linalg.norm(self.r))
 
     @property
     def v_mag(self) -> float:
-        """Speed |v| (m/s)."""
         return float(np.linalg.norm(self.v))
 
 
@@ -83,14 +78,7 @@ def _require_semi_major_axis(a: float) -> None:
 
 
 def solve_kepler(mean_anomaly: float, e: float, tol: float = 1e-12, max_iter: int = 100) -> float:
-    """Solve Kepler's equation M = E - e*sin(E) for eccentric anomaly E (rad).
-
-    Newton-Raphson from a robust initial guess. Converges to ~1e-12 in a handful of
-    iterations across the full elliptical range, including e near 1.
-
-    Raises:
-        ValueError: If e is not in [0, 1), or the iteration fails to converge.
-    """
+    """Solve Kepler's equation M = E - e*sin(E) for eccentric anomaly E (rad) by Newton-Raphson."""
     _require_eccentricity(e)
     if not math.isfinite(mean_anomaly):
         raise ValueError("mean_anomaly must be finite")
@@ -123,7 +111,7 @@ def eccentric_from_true(nu: float, e: float) -> float:
     """Eccentric anomaly (rad, 0..2pi) from true anomaly nu."""
     _require_eccentricity(e)
     E = 2.0 * math.atan2(math.sqrt(1.0 - e) * math.sin(nu / 2.0),
-                        math.sqrt(1.0 + e) * math.cos(nu / 2.0))
+                         math.sqrt(1.0 + e) * math.cos(nu / 2.0))
     return E % _TWO_PI
 
 
@@ -146,11 +134,7 @@ def _rotation_perifocal_to_inertial(raan: float, i: float, argp: float) -> np.nd
 
 
 def elements_to_state(elements: OrbitalElements, mu: float) -> StateVector:
-    """Convert classical elements to an inertial Cartesian state (Curtis Algorithm 4.5).
-
-    Raises:
-        ValueError: If mu <= 0, e not in [0, 1), or a <= 0.
-    """
+    """Classical elements -> inertial Cartesian state (Curtis Algorithm 4.5)."""
     _require_mu(mu)
     _require_eccentricity(elements.e)
     _require_semi_major_axis(elements.a)
@@ -173,15 +157,10 @@ def _clamp_unit(x: float) -> float:
 
 
 def state_to_elements(state: StateVector, mu: float) -> OrbitalElements:
-    """Convert an inertial Cartesian state to classical elements (Curtis Algorithm 4.1).
+    """Inertial Cartesian state -> classical elements (Curtis Algorithm 4.1).
 
-    Singular cases are handled per the standard convention: for a circular orbit the
-    argument of periapsis is set to 0 and the in-plane angle is carried in nu (argument
-    of latitude / true longitude); for an equatorial orbit the node longitude is 0.
-
-    Raises:
-        ValueError: If mu <= 0, or the state is degenerate (zero radius or zero
-                    angular momentum, i.e. radial/rectilinear motion).
+    Singular cases follow the standard convention: circular -> argp = 0 with the
+    in-plane angle carried in nu; equatorial -> raan = 0.
     """
     _require_mu(mu)
     r_vec = np.asarray(state.r, dtype=float).reshape(3)
@@ -254,12 +233,8 @@ def state_to_elements(state: StateVector, mu: float) -> OrbitalElements:
 def propagate_kepler(elements: OrbitalElements, dt: float, mu: float) -> OrbitalElements:
     """Advance elements by dt seconds along the unperturbed two-body orbit.
 
-    Analytic (no integration error): convert nu -> mean anomaly, advance by n*dt, solve
-    Kepler's equation, convert back. Only nu (and epoch) change. This is the exact
-    two-body solution and serves as ground truth for the numerical propagator.
-
-    Raises:
-        ValueError: If mu <= 0, e not in [0, 1), a <= 0, or dt is not finite.
+    Analytic (nu -> M, advance by n*dt, re-solve Kepler): the exact two-body solution,
+    used as ground truth for the numerical propagator. Only nu and epoch change.
     """
     _require_mu(mu)
     _require_eccentricity(elements.e)

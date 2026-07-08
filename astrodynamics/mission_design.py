@@ -1,15 +1,6 @@
-"""Impulsive delta-v budget for an interplanetary transfer.
-
-The porkchop search (porkchop.py) reports hyperbolic excess speeds (v_infinity) at
-departure and arrival. Those are not yet a mission cost: the spacecraft must be injected
-from a parking orbit onto the departure hyperbola, and captured from the arrival hyperbola
-into a target orbit. This module turns v_infinity into the two impulsive burns that bound
-the in-space propulsion budget (Curtis, *Orbital Mechanics for Engineering Students*,
-Chapter 8).
-
-These are impulsive (instantaneous-burn) estimates. A full budget would add finite-burn
-and gravity losses, launch-vehicle ascent, mid-course corrections, and entry/descent/
-landing — all vehicle- and mission-specific. SI units; speeds in m/s unless noted.
+"""Impulsive delta-v budget: parking-orbit injection and arrival capture burns from
+the porkchop v-infinity values (Curtis Ch. 8). Excludes finite-burn/gravity losses,
+ascent, mid-course corrections, and EDL. SI units; speeds in m/s unless noted.
 """
 
 from __future__ import annotations
@@ -30,14 +21,7 @@ from astrodynamics.porkchop import TransferOpportunity
 
 
 def injection_delta_v(v_inf: float, mu: float, r_park: float) -> float:
-    """Burn (m/s) to inject from a circular parking orbit onto the departure hyperbola.
-
-    At periapsis the hyperbola speed is sqrt(v_inf^2 + 2 mu / r); the parking-orbit speed
-    is sqrt(mu / r). The injection burn is their difference (Curtis Eq. 8.41).
-
-    Raises:
-        ValueError: If mu <= 0 or r_park <= 0.
-    """
+    """Burn (m/s) from a circular parking orbit onto the departure hyperbola (Curtis Eq. 8.41)."""
     if mu <= 0.0 or r_park <= 0.0:
         raise ValueError("mu and r_park must be positive")
     v_hyperbola = math.sqrt(v_inf * v_inf + 2.0 * mu / r_park)
@@ -46,15 +30,7 @@ def injection_delta_v(v_inf: float, mu: float, r_park: float) -> float:
 
 
 def capture_delta_v(v_inf: float, mu: float, r_capture: float, e_capture: float = 0.0) -> float:
-    """Burn (m/s) to capture from the arrival hyperbola into the target orbit at periapsis.
-
-    The hyperbola periapsis speed is sqrt(v_inf^2 + 2 mu / r); the captured-orbit periapsis
-    speed is sqrt((1 + e) mu / r) (e=0 for a circular capture orbit). The capture burn is
-    their difference (Curtis Eq. 8.66, periapsis-burn capture).
-
-    Raises:
-        ValueError: If mu <= 0, r_capture <= 0, or e_capture not in [0, 1).
-    """
+    """Periapsis burn (m/s) from the arrival hyperbola into the target orbit (Curtis Eq. 8.66)."""
     if mu <= 0.0 or r_capture <= 0.0:
         raise ValueError("mu and r_capture must be positive")
     if not 0.0 <= e_capture < 1.0:
@@ -81,10 +57,7 @@ def mission_delta_v(
     r_capture: float = MARS_RADIUS + MARS_CAPTURE_ALTITUDE,
     e_capture: float = MARS_CAPTURE_ECCENTRICITY,
 ) -> DeltaVBudget:
-    """Impulsive injection + capture delta-v for a solved transfer (Earth->Mars defaults).
-
-    The v_infinity values are taken from ``opportunity`` (km/s) and converted to m/s.
-    """
+    """Impulsive injection + capture delta-v for a solved transfer (Earth->Mars defaults)."""
     v_inf_dep = opportunity.v_inf_depart_km_s * 1000.0
     v_inf_arr = opportunity.v_inf_arrive_km_s * 1000.0
     injection = injection_delta_v(v_inf_dep, mu_depart, r_park)

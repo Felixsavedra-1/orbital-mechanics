@@ -1,17 +1,6 @@
-"""Perturbing accelerations for high-fidelity orbit propagation.
-
-Perturbations that matter most for near-Earth work, in rough order:
-
-  * Zonal gravity (J2..Jn) - Earth's oblateness and higher axisymmetric terms; J2 drives
-                     nodal regression and apsidal rotation and dominates every other
-                     perturbation in LEO. J3..J6 are smaller north-south asymmetry terms.
-  * Atmospheric drag - non-conservative; saps energy and decays low orbits.
-  * Third-body     - Sun/Moon gravity; significant for high orbits.
-  * Solar radiation pressure - photon momentum; matters for high area-to-mass bodies.
-
-Each acceleration is a free function (easy to test in isolation); `ForceModel` composes
-the enabled ones into the single acceleration the integrator calls. Earth-centred
-inertial (ECI) frame, SI units; the zonal z-axis is the spin axis.
+"""Perturbing accelerations: zonal gravity (J2..Jn), atmospheric drag, solar radiation
+pressure, and third-body. Each is a free function; `ForceModel` composes the enabled
+ones for the integrator. ECI frame, SI units; the zonal z-axis is the spin axis.
 """
 
 from __future__ import annotations
@@ -56,13 +45,10 @@ def j2_acceleration(r: np.ndarray, mu: float, j2: float, r_eq: float) -> np.ndar
 
 
 def zonal_acceleration(r: np.ndarray, mu: float, r_eq: float, j: tuple[float, ...]) -> np.ndarray:
-    """Acceleration from the zonal harmonics J2..Jn (axisymmetric gravity), ECI frame.
+    """Zonal-harmonic acceleration (gradient of the disturbing potential), ECI frame.
 
-    Gradient of the zonal disturbing potential, summed degree by degree. ``j`` lists the
-    unnormalized coefficients starting at J2 (j[0]=J2, j[1]=J3, ...). The Legendre
-    polynomials P_n(sin phi) and their derivatives are built by the standard upward
-    recurrence (Vallado, *Fundamentals of Astrodynamics*, Sec. 8.6; Montenbruck & Gill,
-    *Satellite Orbits*, Sec. 3.2). For j=(J2,) this reproduces ``j2_acceleration``.
+    ``j`` lists unnormalized coefficients starting at J2. Legendre recurrence per
+    Vallado Sec. 8.6 / Montenbruck & Gill Sec. 3.2; j=(J2,) reproduces j2_acceleration.
     """
     r = np.asarray(r, dtype=float)
     x, y, z = r
@@ -70,7 +56,6 @@ def zonal_acceleration(r: np.ndarray, mu: float, r_eq: float, j: tuple[float, ..
     s = z / r_mag  # sin(latitude)
 
     n_max = len(j) + 1
-    # Legendre polynomials P_n(s) and derivatives P'_n(s) by recurrence, up to n_max.
     p = [0.0] * (n_max + 1)
     dp = [0.0] * (n_max + 1)
     p[0], p[1] = 1.0, s
@@ -79,10 +64,8 @@ def zonal_acceleration(r: np.ndarray, mu: float, r_eq: float, j: tuple[float, ..
         p[n] = ((2 * n - 1) * s * p[n - 1] - (n - 1) * p[n - 2]) / n
         dp[n] = n * (s * p[n] - p[n - 1]) / (s * s - 1.0) if s * s != 1.0 else 0.0
 
-    # Gradient of the zonal disturbing potential U_p = -(mu/r) * sum_n Jn (R/r)^n P_n(s),
-    # accumulated degree by degree. dU_dr is the radial partial (holding s fixed) and
-    # dU_dlat the partial wrt s = sin(latitude); both carry the same sign convention so the
-    # Cartesian projection below is consistent. For j=(J2,) this matches Curtis Eq. 12.30.
+    # U_p = -(mu/r) * sum_n Jn (R/r)^n P_n(s); dU_dr is the radial partial, dU_dlat
+    # the partial wrt s = sin(latitude).
     dU_dr = 0.0
     dU_dlat = 0.0
     for n in range(2, n_max + 1):
@@ -93,8 +76,7 @@ def zonal_acceleration(r: np.ndarray, mu: float, r_eq: float, j: tuple[float, ..
     dU_dr *= mu / (r_mag * r_mag)
     dU_dlat *= mu / r_mag
 
-    # Project the radial (x_i/r) and sin-latitude (ds/dx_i) partials onto the ECI axes,
-    # with ds/dx = -xz/r^3, ds/dy = -yz/r^3, ds/dz = (x^2+y^2)/r^3.
+    # Project onto ECI axes: ds/dx = -xz/r^3, ds/dy = -yz/r^3, ds/dz = (x^2+y^2)/r^3.
     rho_xy_sq = x * x + y * y
     common_r = dU_dr / r_mag
     ax = common_r * x + dU_dlat * (x * z) / (r_mag ** 3)
@@ -104,12 +86,7 @@ def zonal_acceleration(r: np.ndarray, mu: float, r_eq: float, j: tuple[float, ..
 
 
 def atmospheric_density(altitude_m: float) -> float:
-    """Banded exponential atmosphere (kg/m^3) from ATMOSPHERE_BANDS (Vallado Table 8-4).
-
-    Selects the band whose base altitude is the greatest not exceeding ``altitude_m`` and
-    evaluates rho = rho0 * exp(-(h - h0)/H). Below the lowest band the surface band is
-    used; the model is only meaningful for h >= 0.
-    """
+    """Banded exponential density (kg/m^3) from ATMOSPHERE_BANDS (Vallado Table 8-4)."""
     band = ATMOSPHERE_BANDS[0]
     for candidate in ATMOSPHERE_BANDS:
         if altitude_m >= candidate[0]:
@@ -126,12 +103,10 @@ def srp_acceleration(
     cr_area_over_mass: float,
     occulting_radius: float = EARTH_RADIUS,
 ) -> np.ndarray:
-    """Solar radiation pressure (cannonball model) with a cylindrical shadow, ECI frame.
+    """Cannonball SRP with a cylindrical shadow (Vallado Sec. 8.6), ECI frame.
 
-    a = -P(1AU) * Cr * (A/m) * (AU / d_sun)^2 * u_sun, directed away from the Sun, where
-    d_sun is the satellite-Sun distance. Inside the cylindrical umbra behind the occulting
-    body (radius ``occulting_radius``) the acceleration is zero. ``cr_area_over_mass`` is
-    Cr*A/m (m^2/kg). Reference: Vallado, Sec. 8.6 (canonball SRP, cylindrical eclipse).
+    a = -P(1AU) * (Cr*A/m) * (AU/d_sun)^2 * u_sun; zero inside the umbra behind the
+    occulting body. ``cr_area_over_mass`` is Cr*A/m (m^2/kg).
     """
     r_sat = np.asarray(r_sat, dtype=float)
     r_sun = np.asarray(r_sun, dtype=float)
@@ -155,11 +130,7 @@ def drag_acceleration(
     cd_area_over_mass: float,
     omega: float = EARTH_ANGULAR_VELOCITY,
 ) -> np.ndarray:
-    """Atmospheric drag: a = -0.5 * rho * |v_rel| * (Cd*A/m) * v_rel.
-
-    Velocity is taken relative to a co-rotating atmosphere. cd_area_over_mass is the
-    inverse ballistic coefficient Cd*A/m (m^2/kg).
-    """
+    """Drag a = -0.5 * rho * |v_rel| * (Cd*A/m) * v_rel, relative to a co-rotating atmosphere."""
     r = np.asarray(r, dtype=float)
     v = np.asarray(v, dtype=float)
     altitude = float(np.linalg.norm(r)) - EARTH_RADIUS
@@ -170,10 +141,7 @@ def drag_acceleration(
 
 
 def third_body_acceleration(r: np.ndarray, r_third: np.ndarray, mu_third: float) -> np.ndarray:
-    """Third-body perturbation (Battin's formulation, cancels the common-mode term).
-
-    a = mu_third * ( (r_third - r)/|r_third - r|^3  -  r_third/|r_third|^3 )
-    """
+    """Third-body perturbation a = mu * ((r_third - r)/|r_third - r|^3 - r_third/|r_third|^3)."""
     r = np.asarray(r, dtype=float)
     r_third = np.asarray(r_third, dtype=float)
     d = r_third - r
@@ -183,16 +151,10 @@ def third_body_acceleration(r: np.ndarray, r_third: np.ndarray, mu_third: float)
 
 @dataclass
 class ForceModel:
-    """Composable acceleration model. Enable only the perturbations you need.
+    """Composable acceleration model; enable only the perturbations you need.
 
-    mu:                central-body gravitational parameter (m^3/s^2).
-    use_j2 / j2 / r_eq: oblateness term and its reference radius.
-    zonal:             optional tuple of zonal coefficients (J2, J3, ...) for the
-                       higher-order axisymmetric field; when set it supersedes use_j2.
-    use_drag / cd_area_over_mass: banded-atmosphere drag (Cd*A/m, m^2/kg).
-    use_srp / cr_area_over_mass / sun_position: solar radiation pressure (Cr*A/m, m^2/kg)
-                       with the Sun position supplied by sun_position(t) -> r_sun.
-    third_bodies:      iterable of (mu_third, position_func(t) -> r_third).
+    ``zonal`` (a tuple starting at J2) supersedes ``use_j2`` when set. SRP requires
+    ``sun_position(t) -> r_sun``; ``third_bodies`` is (mu, position_func(t)) pairs.
     """
 
     mu: float = MU_EARTH

@@ -1,10 +1,6 @@
-"""Lambert's problem: find the transfer orbit connecting two position vectors in a
-given time of flight, returning the velocities at both ends (from which departure C3
-and arrival v-infinity follow).
-
-Universal-variable formulation (Bate-Mueller-White; Curtis, *Orbital Mechanics for
-Engineering Students*, Algorithm 5.2) with a Newton iteration on the universal variable
-z. Single-revolution transfers only. Validated against Curtis Example 5.2.
+"""Lambert two-point boundary-value solver, universal-variable formulation
+(Bate-Mueller-White; Curtis Algorithm 5.2). Single-revolution transfers only;
+validated against Curtis Example 5.2.
 """
 
 from __future__ import annotations
@@ -18,7 +14,7 @@ _TWO_PI = 2.0 * math.pi
 
 
 def _stumpff_c(z: float) -> float:
-    """Stumpff function C(z), series-stabilized near z = 0."""
+    # Series-stabilized near z = 0.
     if z > 1e-6:
         sz = math.sqrt(z)
         return (1.0 - math.cos(sz)) / z
@@ -29,7 +25,6 @@ def _stumpff_c(z: float) -> float:
 
 
 def _stumpff_s(z: float) -> float:
-    """Stumpff function S(z), series-stabilized near z = 0."""
     if z > 1e-6:
         sz = math.sqrt(z)
         return (sz - math.sin(sz)) / sz**3
@@ -48,20 +43,10 @@ def solve_lambert(
     tol: float = 1e-9,
     max_iter: int = 200,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Solve Lambert's problem for the single-revolution transfer.
+    """Velocities (v1, v2) in m/s at r1 and r2 (m) on the transfer orbit for the given
+    time of flight (s) about a body with gravitational parameter mu (m^3/s^2).
 
-    Args:
-        r1, r2: initial and final position vectors (m), inertial frame.
-        tof:    time of flight (s, > 0).
-        mu:     gravitational parameter of the central body (m^3/s^2).
-        prograde: True for a prograde transfer, False for retrograde.
-
-    Returns:
-        (v1, v2): velocity vectors (m/s) at r1 and r2 on the transfer orbit.
-
-    Raises:
-        ValueError: For non-physical inputs, a 0 or 180 degree transfer (the
-                    geometry is singular), or failure to converge.
+    Raises ValueError for singular geometry (0/180 degree transfer) or non-convergence.
     """
     r1 = np.asarray(r1, dtype=float).reshape(3)
     r2 = np.asarray(r2, dtype=float).reshape(3)
@@ -87,8 +72,7 @@ def solve_lambert(
             dnu = _TWO_PI - dnu
 
     sin_dnu = math.sin(dnu)
-    # A 0 or 180 degree transfer leaves the orbit plane undefined. Test the angle
-    # itself (scale-independent) rather than A, whose size scales with distance.
+    # Test the angle itself (scale-independent), not A, which scales with distance.
     if abs(sin_dnu) < 1e-8:
         raise ValueError("transfer angle is ~0 or 180 degrees; Lambert geometry is singular")
     A = sin_dnu * math.sqrt(R1 * R2 / (1.0 - cos_dnu))
@@ -104,8 +88,7 @@ def solve_lambert(
     sqrt_mu_tof = math.sqrt(mu) * tof
     ratio = 1.0
     for _ in range(max_iter):
-        # Physical single-rev solutions sit in a bounded z window; a step running far
-        # past it means this date/TOF pairing has no such transfer (skip the cell).
+        # Far outside the bounded z window of single-rev solutions -> no transfer exists.
         if not math.isfinite(z) or z < -1.0e5:
             raise ValueError("Lambert iteration diverged (no single-rev transfer for this geometry)")
         C = _stumpff_c(z)

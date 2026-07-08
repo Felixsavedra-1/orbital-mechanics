@@ -1,16 +1,7 @@
-"""Approximate heliocentric ephemerides for the major planets.
-
-Positions and velocities come from JPL's "Keplerian Elements for Approximate
-Positions of the Major Planets" (E. M. Standish), the table valid 1800-2050:
-https://ssd.jpl.nasa.gov/planets/approx_pos.html
-
-Each planet has J2000 ecliptic elements plus linear rates per Julian century. We
-advance the elements to the requested epoch, solve Kepler's equation, and reuse
-state.elements_to_state for the Cartesian state. Accuracy over 1800-2050 is sub-arcmin
-for the inner planets — coarse next to SPICE/DE440 but adequate for launch-window
-analysis without kernel files.
-
-All returned states are heliocentric, in the J2000 ecliptic frame, in SI units.
+"""Approximate heliocentric planetary ephemerides (Standish, JPL approx_pos.html,
+valid 1800-2050): J2000 ecliptic elements plus linear rates per Julian century.
+Sub-arcmin for the inner planets — adequate for launch-window analysis without
+SPICE kernels. All states heliocentric, J2000 ecliptic frame, SI units.
 """
 
 from __future__ import annotations
@@ -25,9 +16,8 @@ from astrodynamics.state import OrbitalElements, StateVector, elements_to_state,
 J2000_JD = 2451545.0
 _DAYS_PER_CENTURY = 36525.0
 
-# Columns: a (AU), e, I (deg), L (deg), longitude of perihelion (deg), longitude of
-# ascending node (deg). First row per planet is the J2000 value, second is the rate
-# per Julian century. Source: JPL approx_pos.html, table 1 (1800 AD - 2050 AD).
+# Per planet: J2000 values then rates per Julian century, columns a (AU), e, I (deg),
+# L (deg), longitude of perihelion (deg), longitude of ascending node (deg).
 _ELEMENTS = {
     "Mercury": (
         (0.38709927, 0.20563593, 7.00497902, 252.25032350, 77.45779628, 48.33076593),
@@ -65,8 +55,7 @@ _ELEMENTS = {
 
 
 def datetime_to_jd(when: _dt.datetime) -> float:
-    """Julian Date from a (UTC) datetime. The TT-UTC offset (~tens of seconds) is
-    negligible for launch-window-scale analysis, so UTC is treated as TT here."""
+    """Julian Date from a UTC datetime (UTC treated as TT; the offset is negligible here)."""
     year, month = when.year, when.month
     day_frac = when.day + (when.hour + when.minute / 60.0 + when.second / 3600.0) / 24.0
     if month <= 2:
@@ -104,11 +93,7 @@ def jd_to_datetime(jd: float) -> _dt.datetime:
 
 
 def planet_elements(name: str, jd: float) -> OrbitalElements:
-    """Heliocentric J2000-ecliptic orbital elements of a planet at the given JD.
-
-    Raises:
-        ValueError: If the planet name is unknown.
-    """
+    """Heliocentric J2000-ecliptic orbital elements of a planet at the given JD."""
     if name not in _ELEMENTS:
         raise ValueError(f"unknown planet '{name}'; known: {', '.join(_ELEMENTS)}")
     base, rate = _ELEMENTS[name]
@@ -124,7 +109,7 @@ def planet_elements(name: str, jd: float) -> OrbitalElements:
     argp_deg = long_peri - long_node
     mean_anom_deg = (mean_longitude - long_peri + 180.0) % 360.0 - 180.0  # wrap to [-180,180)
 
-    E = _solve_kepler_deg(mean_anom_deg, e)
+    E = solve_kepler(math.radians(mean_anom_deg), e)
     nu = true_from_eccentric(E, e)
     return OrbitalElements(
         a=a_au * AU,
@@ -135,11 +120,6 @@ def planet_elements(name: str, jd: float) -> OrbitalElements:
         nu=nu,
         epoch=jd,
     )
-
-
-def _solve_kepler_deg(mean_anom_deg: float, e: float) -> float:
-    """Kepler solve with the mean anomaly supplied in degrees; returns E (rad)."""
-    return solve_kepler(math.radians(mean_anom_deg), e)
 
 
 def planet_state(name: str, jd: float) -> StateVector:

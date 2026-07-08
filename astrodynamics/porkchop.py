@@ -1,17 +1,6 @@
-"""Interplanetary transfer / launch-window analysis (porkchop search).
-
-For each (departure date, time-of-flight) pair, look up the departure/arrival planet
-positions (ephemeris.py), solve Lambert for the connecting heliocentric transfer, and
-difference the transfer velocities against the planet velocities to get the hyperbolic
-excess speeds:
-
-    v_inf_depart = |v1 - v_planet_dep|   ->   C3 = v_inf_depart^2   (launch energy)
-    v_inf_arrive = |v2 - v_planet_arr|                              (arrival energy)
-
-Scanning a grid of dates and flight times gives the classic porkchop trade space; the
-minimum-energy cell is a real launch opportunity. Total v_infinity (departure + arrival)
-is reported as a first-order delta-v proxy — a full budget would add launch injection
-and capture/EDL, which depend on vehicle and mission specifics.
+"""Porkchop launch-window search: for each (departure date, time-of-flight) cell,
+solve Lambert between ephemeris positions and difference the transfer velocities
+against the planet velocities for the hyperbolic excess speeds (C3 = v_inf_depart^2).
 """
 
 from __future__ import annotations
@@ -50,11 +39,7 @@ def solve_transfer(
     mu: float = MU_SUN,
     prograde: bool = True,
 ) -> TransferOpportunity:
-    """Solve a single planet-to-planet transfer and return its energy metrics.
-
-    Raises:
-        ValueError: If tof_days <= 0 or the Lambert geometry is singular/non-convergent.
-    """
+    """Solve a single planet-to-planet transfer and return its energy metrics."""
     if not math.isfinite(tof_days) or tof_days <= 0.0:
         raise ValueError("tof_days must be a finite positive number")
 
@@ -85,13 +70,9 @@ def best_transfer(
     mu: float = MU_SUN,
     prograde: bool = True,
 ) -> TransferOpportunity:
-    """Scan a (departure date x flight time) grid and return the minimum-energy transfer.
+    """Minimum total-v_infinity transfer over a (departure date x flight time) grid.
 
-    The objective is total v_infinity (departure + arrival). Grid cells whose Lambert
-    geometry is singular or fails to converge are skipped.
-
-    Raises:
-        ValueError: If no grid cell yields a valid transfer.
+    Cells whose Lambert geometry is singular or fails to converge are skipped.
     """
     best: TransferOpportunity | None = None
     for dep_jd in departure_jds:

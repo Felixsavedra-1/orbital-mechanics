@@ -17,16 +17,12 @@ MOON_ORBITAL_RADIUS = 384_400_000.0  # m, NASA Moon fact sheet (2024)
 EARTH_RADIUS = 6_371_000.0  # m, volumetric mean, NASA Earth fact sheet (2024)
 ISS_ALTITUDE = 408_000.0    # m, approximate mean as of 2024-Q1; decays ~2 km/year
 
-# Perturbation-model parameters (Earth). J2 is the dominant non-spherical gravity term;
-# the equatorial radius (not the volumetric mean above) is the reference radius it scales
-# against, so they must be used together.
+# J2 scales against the equatorial radius (not the volumetric mean above); use together.
 EARTH_J2 = 1.08262668e-3          # dimensionless, EGM96 oblateness coefficient
 EARTH_RADIUS_EQUATORIAL = 6_378_137.0  # m, WGS84 equatorial radius (J2 reference)
 EARTH_ANGULAR_VELOCITY = 7.2921159e-5  # rad/s, sidereal rotation (co-rotating atmosphere)
 
-# Higher-order zonal harmonics (axisymmetric gravity). Unnormalized J_n coefficients from
-# EGM96; together with J2 they capture the dominant non-spherical field for orbits that do
-# not resolve longitude-dependent (tesseral) terms. Same reference radius as J2.
+# Unnormalized zonal harmonics J3-J6 (EGM96), same reference radius as J2.
 EARTH_J3 = -2.53265649e-6   # dimensionless, EGM96
 EARTH_J4 = -1.61962159e-6   # dimensionless, EGM96
 EARTH_J5 = -2.27296083e-7   # dimensionless, EGM96
@@ -36,11 +32,8 @@ EARTH_ZONAL_J2_TO_J6 = (EARTH_J2, EARTH_J3, EARTH_J4, EARTH_J5, EARTH_J6)
 # Solar radiation pressure at 1 AU: P = solar irradiance / c = 1361 / 2.998e8.
 SOLAR_PRESSURE_1AU = 4.5604e-6  # N/m^2 (Vallado, Fundamentals of Astrodynamics, Sec. 8.6)
 
-# Banded exponential atmosphere: piecewise rho(h) = rho0 * exp(-(h - h0)/H) with the base
-# altitude h0 (m), base density rho0 (kg/m^3), and scale height H (m) selected by altitude
-# band. Source: Vallado Table 8-4 (exponential atmospheric model, derived from CIRA-72/US
-# Standard 1976). Far more realistic across the LEO range than a single anchor; still an
-# analytic model, not a substitute for NRLMSISE-00. Bands listed by ascending base altitude.
+# Banded exponential atmosphere, rho(h) = rho0 * exp(-(h - h0)/H) per altitude band.
+# Vallado Table 8-4 (CIRA-72 / US Standard 1976); analytic, not NRLMSISE-00.
 ATMOSPHERE_BANDS = (
     # (h0_m,      rho0_kg_m3,   scale_height_m)
     (0.0,         1.225,        7_249.0),

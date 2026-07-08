@@ -1,13 +1,6 @@
-"""Adaptive numerical propagation of perturbed orbits.
-
-The root engine's propagator.py uses fixed-step RK4 (pure stdlib, deterministic, fine
-for smooth two-body arcs). This is the high-fidelity path: scipy's DOP853 (8th-order
-Dormand-Prince) with embedded error control and automatic step-size adaptation, driven
-by an arbitrary ForceModel.
-
-Conservation diagnostics (specific energy and angular momentum) are the standard way to
-audit an integrator: under point-mass-only gravity both are invariants, so their drift
-bounds the numerical error.
+"""Adaptive propagation of perturbed orbits: scipy DOP853 (8th-order Dormand-Prince)
+driven by an arbitrary ForceModel, plus energy/momentum conservation diagnostics
+whose drift under point-mass gravity bounds the numerical error.
 """
 
 from __future__ import annotations
@@ -47,12 +40,7 @@ def propagate(
     rtol: float = 1e-10,
     atol: float = 1e-12,
 ) -> Trajectory:
-    """Propagate an initial state over t_span under force_model using DOP853.
-
-    Raises:
-        ValueError: If n_eval < 2 or t_span is degenerate.
-        RuntimeError: If the integrator reports failure.
-    """
+    """Propagate an initial state over t_span under force_model using DOP853."""
     r0 = np.asarray(r0, dtype=float).reshape(3)
     v0 = np.asarray(v0, dtype=float).reshape(3)
     t0, t1 = t_span

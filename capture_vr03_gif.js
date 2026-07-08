@@ -5,14 +5,11 @@ const fs = require('fs');
 const path = require('path');
 
 // Renders the VR-03 orbit visual (vr03_orbit_capture.html) to a seamless looping
-// GIF for the README footer. Mirrors capture_gif.js — same puppeteer ->
-// gif-encoder-2 -> jimp -> (gifsicle) pipeline and 2x supersample/downscale.
+// GIF for the README footer, same pipeline as capture_gif.js.
 
 const WIDTH = 512;
 const HEIGHT = 320;             // 256x160 @2x — the portfolio orbit card's native aspect (8:5)
-// Frame count and delay are derived in vr03_orbit_capture.html from the site's real
-// phi/tau rates (one spacecraft transit per loop, at a real, smooth frame rate) —
-// read from there so the two files can't drift out of sync.
+// Frame count and delay come from vr03_orbit_capture.html so the two files can't drift.
 
 async function main() {
   console.log('Launching browser...');
@@ -21,8 +18,7 @@ async function main() {
   });
 
   const page = await browser.newPage();
-  // The card is 256x160 CSS; deviceScaleFactor: 2 captures the styled #c element
-  // at WIDTH x HEIGHT (512x320), 1:1 with its 2x backing store — crisp, no rescale.
+  // deviceScaleFactor: 2 captures the 256x160 card at 512x320, 1:1 with its backing store.
   await page.setViewport({ width: 360, height: 240, deviceScaleFactor: 2 });
 
   const htmlPath = path.resolve(__dirname, 'vr03_orbit_capture.html');

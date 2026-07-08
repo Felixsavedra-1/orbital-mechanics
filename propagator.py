@@ -44,14 +44,9 @@ def propagate_two_body(
     n_steps: int,
     gravitational_constant: float = G,
 ) -> list[tuple[float, float, float, float, float]]:
-    """Propagate a two-body orbit using 4th-order Runge-Kutta integration.
+    """Fixed-step RK4 two-body propagation, central body at the origin, SI units.
 
-    Central body is fixed at the origin. All quantities in SI units.
     Returns n_steps+1 tuples of (t_s, x_m, y_m, vx_ms, vy_ms), starting at t=0.
-
-    Raises:
-        ValueError: If central_mass_kg <= 0, dt_s <= 0, n_steps < 1,
-                    gravitational_constant <= 0, or r=0 encountered during integration.
     """
     require_positive_finite("central_mass_kg", central_mass_kg)
     require_positive_finite("dt_s", dt_s)

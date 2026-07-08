@@ -23,6 +23,7 @@ from data import (
 
 LABEL_WIDTH = 36
 VALUE_WIDTH = 14
+_YEARS_THRESHOLD_DAYS = 365.25 * 2
 
 REPORT_TITLE = "PLANET ORBITAL SIMULATION & SPACE EXPLORATION GUIDE"
 REPORT_SCHEMA_VERSION = "1.2.0"
@@ -54,16 +55,12 @@ class MetricRecord:
 
 def _metric(section: str, label: str, value_num: float, unit: str,
             decimals: int, note: str = "") -> MetricRecord:
-    """MetricRecord for a numeric value, formatted and rounded to `decimals` places."""
     return MetricRecord(section, label, f"{value_num:.{decimals}f}",
                         round(value_num, decimals), unit, note)
 
 
-_YEARS_THRESHOLD_DAYS = 365.25 * 2
-
-
 def _format_period(period_hours: float) -> tuple[str, str]:
-    """Scale a period to a human-readable (value_str, unit_str) pair."""
+    """Scale a period to a readable (value, unit) pair: minutes/hours/days/years."""
     days = period_hours / 24
     if days >= _YEARS_THRESHOLD_DAYS:
         return f"{days / 365.25:.1f}", "Earth years"
@@ -117,7 +114,6 @@ def _concept_station_records() -> list[MetricRecord]:
 
 
 def _mars_base_records() -> list[MetricRecord]:
-    """Conceptual planning fields — not engineering-specified."""
     note = "Conceptual — not engineering-specified"
     return [
         MetricRecord("mars-base", "Location", "TBD", note=note),
@@ -147,9 +143,8 @@ def _transfer_records() -> list[MetricRecord]:
     return records
 
 
-# Earth->Mars launch-window search grid for the "mission" section. The span is fixed
-# (covers the 2026 and 2028 opportunities) so the report is deterministic; 10-day
-# departure resolution over ~3.2 years, flight times 100-360 days.
+# Fixed Earth->Mars search grid (covers the 2026 and 2028 opportunities) so the
+# mission report is deterministic: 10-day departure steps, 100-360 day flight times.
 _MISSION_SEARCH_START = datetime(2026, 1, 1, tzinfo=timezone.utc)
 _MISSION_DEP_STEP_DAYS = 10.0
 _MISSION_DEP_COUNT = 117
@@ -159,9 +154,8 @@ _MISSION_TOF_DAYS = [100.0 + 10.0 * k for k in range(27)]
 def _mission_records() -> list[MetricRecord]:
     """Solve the optimal Earth->Mars transfer over the fixed launch-window grid.
 
-    Uses the high-fidelity astrodynamics layer (approximate JPL ephemerides + a Lambert
-    solver), imported lazily so the default report path stays pure stdlib. This is the
-    real-ephemeris counterpart to the idealized Hohmann figure in the 'transfers' section.
+    The astrodynamics layer (numpy/scipy) is imported lazily so the default
+    report path stays pure stdlib.
     """
     from astrodynamics.ephemeris import datetime_to_jd, jd_to_datetime
     from astrodynamics.mission_design import mission_delta_v
@@ -217,14 +211,7 @@ def _validate_output_format(output_format: str) -> None:
 
 
 def collect_records(section: str) -> list[MetricRecord]:
-    """Return ordered MetricRecords for the given section.
-
-    Records are ordered by section (matching SECTION_ORDER); renderers that
-    group by section rely on this ordering.
-
-    Raises:
-        ValueError: If section is not in VALID_SECTIONS.
-    """
+    """MetricRecords for the given section, ordered per SECTION_ORDER (renderers rely on this)."""
     _validate_section(section)
     by_section = {
         "planets": _planet_velocity_records,
@@ -267,7 +254,6 @@ def render_text(section: str) -> str:
 
 
 def render_json(section: str) -> str:
-    """Render a JSON payload including schema version, provenance, assumptions, and records."""
     records = [asdict(record) for record in collect_records(section)]
     payload = {
         "report_title": REPORT_TITLE,
@@ -312,25 +298,11 @@ def render_csv(section: str) -> str:
 
 
 def render_report(section: str, output_format: str) -> str:
-    """Validate output_format and dispatch to the appropriate renderer.
-    Section validation is enforced by collect_records.
-
-    Raises:
-        ValueError: If output_format is invalid, or if section is invalid
-                    (raised by collect_records via the renderer).
-    """
+    """Dispatch to the renderer for output_format; section is validated by collect_records."""
     _validate_output_format(output_format)
-
     renderers = {
         "text": render_text,
         "json": render_json,
         "csv": render_csv,
     }
-    try:
-        return renderers[output_format](section)
-    except ValueError:
-        raise
-    except Exception as e:
-        raise RuntimeError(
-            f"Renderer '{output_format}' failed for section '{section}': {e}"
-        ) from e
+    return renderers[output_format](section)

@@ -1,20 +1,8 @@
-"""Generate mission_arc.js — the real Earth->Mars transfer that drives the dashboard.
+"""Generate mission_arc.js — the real Earth->Mars 2026 transfer the dashboard animates.
 
-The Mars view in solar_system.html used to draw an idealized coplanar Hohmann ellipse.
-This script designs the *actual* 2026 launch opportunity with the high-fidelity layer and
-emits the sampled geometry as a small JS file the dashboard loads via <script src>.
-
-It reuses the exact launch-window grid the `mission` report section uses (imported from
-report.py), so the dashboard and `python3 main.py --section mission` agree on the date:
-
-    1. best_transfer() finds the minimum-energy (departure date x time-of-flight) cell.
-    2. The winning cell is re-solved for geometry: Lambert gives the heliocentric departure
-       velocity, then the analytic two-body propagator samples the transfer arc over the TOF.
-    3. Earth and Mars are sampled on the same time base (so the animation shows the real
-       lead angle and rendezvous), plus one full orbit each for the ring curves.
-
-All positions are heliocentric ecliptic J2000, in AU. The JS side applies the scene's
-radial compression (auToUnits) when mapping to display units.
+Reuses the launch-window grid from report.py so the dashboard and
+`python3 main.py --section mission` agree on the date. Positions are heliocentric
+ecliptic J2000 in AU; the JS side applies the scene's radial compression.
 
 Run:  python3 generate_mission_arc.py   ->   writes mission_arc.js
 """
@@ -34,35 +22,32 @@ from report import (
 )
 from astrodynamics.ephemeris import datetime_to_jd, jd_to_datetime, planet_state
 from astrodynamics.lambert import solve_lambert
-from astrodynamics.porkchop import best_transfer
+from astrodynamics.porkchop import TransferOpportunity, best_transfer
 from astrodynamics.state import StateVector, elements_to_state, propagate_kepler, state_to_elements
 
 _SECONDS_PER_DAY = 86400.0
+_ARC_SAMPLES = 200   # points along the transfer arc / planet tracks
+_RING_SAMPLES = 240  # points per full orbit ring
 
-# Samples along the transfer arc / planet tracks, and points per full orbit ring.
-_ARC_SAMPLES = 200
-_RING_SAMPLES = 240
-
-# Sidereal periods (days) used only to close the cosmetic orbit rings.
+# Sidereal periods (days), used only to close the cosmetic orbit rings.
 _PERIOD_DAYS = {"Earth": 365.256, "Mars": 686.980}
 
 _OUTPUT = "mission_arc.js"
 
 
 def _au(vec_m: np.ndarray) -> list[float]:
-    """Heliocentric position in metres -> [x, y, z] in AU, rounded for a compact file."""
     return [round(float(c) / AU, 6) for c in vec_m]
 
 
-def _solve_best() -> "object":
-    """Run the same porkchop search as report._mission_records() and return the winner."""
+def _solve_best() -> TransferOpportunity:
+    """Run the same porkchop search as report._mission_records()."""
     start_jd = datetime_to_jd(_MISSION_SEARCH_START)
     departure_jds = [start_jd + _MISSION_DEP_STEP_DAYS * k for k in range(_MISSION_DEP_COUNT)]
     return best_transfer("Earth", "Mars", departure_jds, _MISSION_TOF_DAYS)
 
 
 def _sample_arc(dep_jd: float, tof_s: float) -> list[list[float]]:
-    """Sample the heliocentric transfer arc (AU) from the post-Lambert departure state."""
+    """Sample the transfer arc (AU) from the post-Lambert departure state."""
     dep = planet_state("Earth", dep_jd)
     arr = planet_state("Mars", dep_jd + tof_s / _SECONDS_PER_DAY)
     v1, _ = solve_lambert(dep.r, arr.r, tof_s, MU_SUN)
@@ -76,7 +61,6 @@ def _sample_arc(dep_jd: float, tof_s: float) -> list[list[float]]:
 
 
 def _sample_planet(name: str, dep_jd: float, tof_s: float) -> list[list[float]]:
-    """Sample a planet's heliocentric position (AU) over the transfer time base."""
     return [
         _au(planet_state(name, dep_jd + (tof_s * k / (_ARC_SAMPLES - 1)) / _SECONDS_PER_DAY).r)
         for k in range(_ARC_SAMPLES)
@@ -84,7 +68,6 @@ def _sample_planet(name: str, dep_jd: float, tof_s: float) -> list[list[float]]:
 
 
 def _sample_orbit(name: str, dep_jd: float) -> list[list[float]]:
-    """Sample one full orbit of a planet (AU) as a closed ring curve."""
     period = _PERIOD_DAYS[name]
     return [
         _au(planet_state(name, dep_jd + period * k / _RING_SAMPLES).r)
@@ -93,7 +76,6 @@ def _sample_orbit(name: str, dep_jd: float) -> list[list[float]]:
 
 
 def build_mission_arc() -> dict:
-    """Solve the real Earth->Mars 2026 transfer and assemble the dashboard data bundle."""
     best = _solve_best()
     tof_s = best.tof_days * _SECONDS_PER_DAY
 

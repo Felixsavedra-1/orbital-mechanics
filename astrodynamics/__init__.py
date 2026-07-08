@@ -1,8 +1,6 @@
-"""High-fidelity astrodynamics layer.
-
-This package sits alongside the dependency-light root engine (calculations.py,
-propagator.py) and adds full 6-element orbital state, real transfer design, and
-perturbed propagation. It depends on numpy/scipy; the root engine does not.
+"""High-fidelity astrodynamics layer (numpy/scipy): full 6-element orbital state,
+real transfer design, and perturbed propagation. The stdlib root engine does not
+depend on this package.
 """
 
 from astrodynamics.state import (

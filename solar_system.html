@@ -546,9 +546,7 @@ const EPHEMERIS = {
   ],
 };
 
-// Presentation-only data sheet for the clickable close-ups. Real-world values
-// for display only — kept separate from the orbital EPHEMERIS above (which
-// mirrors the Python source of truth), so the report contract is untouched.
+// Display-only fact sheet for the clickable close-ups; orbital truth stays in EPHEMERIS.
 const BODY_FACTS = {
   Sun: {
     blurb: 'The G-type main-sequence star at the heart of the system; 99.86% of its mass.',
@@ -627,23 +625,19 @@ const BODY_FACTS = {
 // Compressed heliocentric scale so distant planets stay in frame.
 const auToUnits = (au) => Math.pow(au, 0.52) * 65;
 
-// Map a heliocentric ecliptic position [x,y,z] in AU to scene units. auToUnits is a
-// nonlinear radial squash, so compress the *magnitude* and keep direction (per-component
+// AU position -> scene units: compress the magnitude, keep direction (per-component
 // scaling would distort angles). Ecliptic Z (out of plane) → Three.js Y (up).
 const auVecToUnits = ([x, y, z]) => {
   const r = Math.hypot(x, y, z), s = r ? auToUnits(r) / r : 0;
   return new THREE.Vector3(x * s, z * s, y * s);
 };
 
-// Earth's orbital angular velocity at 1× speed, in radians per *second* of
-// wall-clock time. Other bodies scale by Kepler's third law (ω ∝ 1/period).
+// Earth's angular rate at 1× speed (rad per wall-clock s); other bodies scale by Kepler's third law.
 const EARTH_OMEGA = 0.48;
 
-// Shared engine — one renderer / camera / starfield across every view.
-// Filmic color pipeline: textures are tagged sRGB and decoded to linear, lighting
-// happens in linear space with ACES tone mapping, and the composer's final
-// GammaCorrection pass encodes back to sRGB (renderer.outputEncoding is bypassed
-// when rendering through an EffectComposer, so the explicit pass is required).
+// Shared engine — one renderer / camera / starfield across every view. Linear-light
+// pipeline with ACES tone mapping; the composer's GammaCorrection pass re-encodes to
+// sRGB (renderer.outputEncoding is bypassed under an EffectComposer).
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -660,20 +654,14 @@ controls.enableDamping = true;
 controls.dampingFactor = 0.06;
 controls.enableZoom = false;   // zoom is driven by the UI slider, not the wheel
 
-// Bloom post-processing
-// Threshold-gated UnrealBloom: only bright pixels (Sun, flares, plumes, bright
-// stars) bleed light while planets stay crisp. Scene renders through the composer.
+// Threshold-gated bloom: only bright pixels (Sun, flares, plumes) bleed; planets stay crisp.
 const composer = new THREE.EffectComposer(renderer);
 composer.addPass(new THREE.RenderPass(scene, camera));
 const bloomPass = new THREE.UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
-  0.5,    // strength — kept moderate; the wide soft glow comes from the Sun's
-          // halo sprite instead, because heavy bloom shows coarse-mip blockiness
-  0.15,   // radius — small, weighting the fine mips; large radii leak big
-          // pixelated squares around any strong emitter
-  0.85    // luminance threshold — above the brightest tone-mapped planet disc
-          // (~0.8), so only the Sun, specular glints and plumes bleed; a lower
-          // cut blooms whole discs into blocky coarse-mip squares
+  0.5,    // strength — the wide soft glow comes from the Sun's halo sprite, not bloom
+  0.15,   // radius — larger radii leak blocky coarse-mip squares around emitters
+  0.85    // threshold — just above the brightest tone-mapped planet disc (~0.8)
 );
 composer.addPass(bloomPass);
 composer.addPass(new THREE.ShaderPass(THREE.GammaCorrectionShader));   // linear → sRGB output
@@ -681,15 +669,13 @@ composer.addPass(new THREE.ShaderPass(THREE.GammaCorrectionShader));   // linear
 // Low cool fill so unlit hemispheres read as space-dark, not pure black.
 scene.add(new THREE.AmbientLight(0x2a3340, 0.55));
 
-// Deep-space backdrop — present in all views. Layered star shells (varied size,
-// brightness, and colour), a tilted Milky Way band, and a few faint nebulae.
+// Deep-space backdrop: layered star shells, a tilted Milky Way band, faint nebulae.
 let starfield;
 (function () {
   starfield = new THREE.Group();
   const _c = new THREE.Color();
 
-  // One spherical shell of stars: `n` points on a thick shell at radius `spread`,
-  // drawn at a constant pixel `size`, mostly white with a few blue/amber tints.
+  // One shell: `n` stars near radius `spread` at constant pixel `size`, a few blue/amber tints.
   const shell = (n, spread, size, bright) => {
     const pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) {
@@ -745,8 +731,7 @@ let starfield;
     x.fillStyle = g; x.fillRect(0, 0, 256, 256);
     return new THREE.CanvasTexture(c);
   };
-  // Faint by design — the sRGB output stage lifts low values, and anything
-  // brighter starts crossing the bloom threshold in blocky coarse-mip patches.
+  // Faint by design — anything brighter crosses the bloom threshold in blocky patches.
   const nebTints = [
     ['rgba(120,90,200,0.030)', 'rgba(120,90,200,0)'],
     ['rgba(40,120,200,0.026)', 'rgba(40,120,200,0)'],
@@ -785,20 +770,15 @@ const _zoomV     = new THREE.Vector3();   // scratch for the zoom-slider dolly
 const _camOff    = new THREE.Vector3();   // scratch for the follow re-frame arc
 const _camAxis   = new THREE.Vector3();
 const _camPivot  = new THREE.Vector3();
-// Follow-camera re-frame pacing: cap how fast a phase entry may swing the view
-// around the subject and how fast it may dolly, so every re-frame reads as a glide.
+// Cap how fast a phase entry may swing/dolly the camera so re-frames read as glides.
 const CAM_SWEEP_RATE = 1.1;   // rad/s around the subject
 const CAM_DOLLY_RATE = 60;    // scene units/s toward/away from it
 const _IDENTITY_Q = new THREE.Quaternion();   // upright touchdown orientation (nose +Y)
 
-// Build a Mission-Plan follow-camera descriptor: the camera locks onto the moving
-// subject (`anchorFn` returns its current world position each frame) and `back`/`up`
-// only suggest a starting offset per phase — the user owns the framing from there
-// (drag orbits, the zoom slider dollies). `tau` paces the entry re-frame; `az` is the
-// trailing azimuth off the craft's direction of travel (0 = dead astern so the route
-// ahead fills the frame, ~π/2 = broadside so the trajectory sweeps across it; null =
-// legacy behind-the-current-bearing framing). min/max are legacy chase-cam tuning,
-// kept in the signature so the phase tables read unchanged.
+// Follow-camera descriptor: lock onto `anchorFn`, with `back`/`up` only suggesting the
+// entry offset (the user owns framing after that). `tau` paces the entry re-frame; `az`
+// is the trailing azimuth off the direction of travel (0 = dead astern, ~π/2 = broadside,
+// null = legacy behind-the-bearing framing). min/max are legacy chase-cam tuning.
 const trackCam = (anchorFn, back, up, min, tau = 0.6, max = 6000, az = null) =>
   ({ track: anchorFn, back, up, min, max, tau, az });
 const _headV = new THREE.Vector3(), _sideV = new THREE.Vector3();
@@ -837,8 +817,7 @@ function setPanel(html) {
   panelEl.classList.toggle('on', !!html);
 }
 
-// Lists the Sun + eight planets; each entry routes to SolarView.focusOn via
-// focusByName, so a name click zooms in exactly like clicking the body itself.
+// Sun + planet nav list; a name click routes to SolarView.focusOn like clicking the body.
 const bodyNavEl = document.getElementById('body-nav');
 const bodyNav = {
   buttons: {},
@@ -877,14 +856,11 @@ const bodyNav = {
 };
 bodyNav.build(['Sun', ...EPHEMERIS.planets.map((p) => p.name)]);
 
-// Maps load async — bodies keep their base colour until the image arrives, and a
-// failed load degrades to that flat colour instead of going blank.
-// Colour maps are tagged sRGB so the filmic pipeline decodes them correctly;
-// data maps (bump / normal / specular) stay linear.
+// Textures load async; a failed load keeps the flat base colour. Colour maps are
+// tagged sRGB, data maps (bump / normal / specular) stay linear.
 const TEX_CDN = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/textures/planets/';   // three.js r128 maps (Earth + Moon), via jsdelivr with CORS
 const PLANET_CDN = 'https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets@master/images/';   // planetpixelemporium 1k maps — kept for bump/relief data
-// solarsystemscope.com 2k photo maps (CC BY 4.0, NASA imagery), mirrored on GitHub
-// and served via jsdelivr for CORS; pinned to a commit so the URLs never move.
+// solarsystemscope.com 2k maps (CC BY 4.0, NASA imagery), CORS via jsdelivr, commit-pinned.
 const HQ_CDN = 'https://cdn.jsdelivr.net/gh/igorSzymczak/AF2-Client@619675d6d7800984955184273c1ac771bcedae35/assets/structures/planets/';
 const _texLoader = new THREE.TextureLoader();
 const _maxAniso  = renderer.capabilities.getMaxAnisotropy();
@@ -899,11 +875,8 @@ function loadTexture(file, { srgb = true, cdn = TEX_CDN } = {}) {
   return tex;
 }
 
-// Upgrade a material to a real photo map *after* it loads, leaving whatever map it
-// already has (a procedural CanvasTexture, or a flat colour) visible until then. A
-// failed load is a no-op, so bodies never go blank — same graceful path as Earth.
-// `url` and `opts.bump` are full URLs (the 2k colour maps and the 1k bump maps
-// live on different CDNs).
+// Swap in a real photo map after it loads, keeping the procedural/flat map visible
+// until then; a failed load is a no-op so bodies never go blank.
 function swapInPhoto(material, url, opts = {}) {
   if (!url) return;
   _texLoader.load(url,
@@ -936,10 +909,8 @@ const MOON_TEX = {
   bump: loadTexture('moonbump1k.jpg', { srgb: false, cdn: PLANET_CDN }),
 };
 
-// Procedural planet textures (canvas → CanvasTexture)
-// The CDN only ships Earth + Moon maps, so the remaining bodies are painted:
-// rocky worlds get craters + mottling, gas giants get latitudinal bands and
-// storms, Venus gets a thick sulphuric haze. Built once at load (not per-frame).
+// Procedural planet textures, painted once at load: craters + mottling for rocky
+// worlds, latitudinal bands and storms for the giants, sulphuric haze for Venus.
 function _canvasTex(draw, w = 1024, h = 512) {
   const c = document.createElement('canvas');
   c.width = w; c.height = h;
@@ -950,7 +921,6 @@ function _canvasTex(draw, w = 1024, h = 512) {
   return t;
 }
 
-// Interpolate a colour across an array of [r,g,b] stops at t ∈ [0,1].
 function _lerpRGB(stops, t) {
   t = Math.max(0, Math.min(0.999, t));
   const s = t * (stops.length - 1), i = Math.floor(s), f = s - i;
@@ -1038,11 +1008,9 @@ function makeVenusTexture() {
   });
 }
 
-// The Sun's photosphere: a live ShaderMaterial. The real SDO-style photo map is
-// double-sampled through domain-warped, counter-drifting UVs so the plasma visibly
-// churns; fbm granulation shimmers on top; limb darkening + a hot chromosphere rim
-// shape the disc. Until (or if) the photo loads, a purely procedural fbm
-// granulation field renders instead, so the Sun never appears untextured.
+// Sun photosphere shader: the photo map is double-sampled through domain-warped,
+// counter-drifting UVs so the plasma churns, with fbm granulation, limb darkening and
+// a chromosphere rim; a procedural fbm field renders until/unless the photo loads.
 const SUN_GLSL_NOISE = `
   float hash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
   float noise(vec3 x) {
@@ -1236,9 +1204,8 @@ function makeAtmosphere(radius, color, { thickness = 1.18, intensity = 1.0 } = {
   return group;
 }
 
-// Self-luminous star: live shader photosphere (see makeSunMaterial), a big soft
-// halo billboard, layered corona shells (white-hot → orange → red), and erupting
-// limb prominences. userData exposes { core, mat, corona, flares } for animateSun().
+// Shader photosphere + halo billboard + layered corona shells + limb prominences;
+// userData exposes { core, mat, corona, flares } for animateSun().
 function makeSun(radius) {
   const group = new THREE.Group();
 
@@ -1255,9 +1222,8 @@ function makeSun(radius) {
   ];
   corona.forEach((c) => { c.userData.baseOpacity = c.material.opacity; group.add(c); });
 
-  // Solar prominences — additive plasma loops anchored on the limb, apex pointing
-  // radially out. Each is a half-torus; animateSun flickers it and cycles it
-  // through a slow eruption envelope so flares appear to leap up and subside.
+  // Prominences: half-torus plasma loops on the limb, apex radial; animateSun
+  // cycles each through a slow eruption envelope.
   const flares = [];
   const _y = new THREE.Vector3(0, 1, 0), _d = new THREE.Vector3();
   for (let i = 0; i < 7; i++) {
@@ -1284,9 +1250,7 @@ function makeSun(radius) {
   return group;
 }
 
-// Per-frame fiery motion: the photosphere shader churns (uTime), corona shells
-// softly pulse, and each prominence flickers + rides a slow eruption envelope.
-// Core spin is left to each view's update.
+// Per-frame churn/pulse/flicker; core spin is left to each view's update.
 function animateSun(sunGroup, dt, speed, t) {
   const ud = sunGroup.userData, s = Math.max(speed, 0.1);
   ud.mat.uniforms.uTime.value += dt * (0.5 + 0.5 * Math.min(s, 4));
@@ -1318,8 +1282,7 @@ function makeOrbitRing(r, color = 0x2a3a4a, opacity = 0.7) {
   );
 }
 
-// Radial ring profile: brightness + opacity as a function of distance out from
-// the planet, including the dark Cassini Division and a faint inner C ring.
+// Radial ring profile, including the dark Cassini Division and a faint inner C ring.
 function makeRingTexture() {
   return _canvasTex((x, w, h) => {
     for (let i = 0; i < w; i++) {
@@ -1339,8 +1302,7 @@ function makeRingTexture() {
 function makeSaturnRings(planetR) {
   const inner = planetR * 1.3, outer = planetR * 2.6;
   const geo = new THREE.RingGeometry(inner, outer, 160, 1);
-  // Remap UVs so u runs radially (inner→outer) — the default RingGeometry UVs
-  // are a planar box projection, which would smear the banding texture.
+  // Remap UVs so u runs radially — the default planar UVs would smear the banding.
   const pos = geo.attributes.position, uv = geo.attributes.uv, v = new THREE.Vector3();
   for (let i = 0; i < pos.count; i++) {
     v.fromBufferAttribute(pos, i);
@@ -1365,11 +1327,8 @@ function makeSaturnRings(planetR) {
   return group;
 }
 
-// Textured Earth: continents/oceans (map), glossy seas only (specularMap),
-// surface relief (normalMap), night-side city lights (emissiveMap), a drifting
-// cloud shell, and a fresnel atmosphere. Earth keeps Phong — its specular map
-// is what makes only the oceans catch sunlight.
-// Tilted 23.4°; `userData.surface` / `userData.clouds` let views spin each.
+// Textured Earth with cloud shell and fresnel atmosphere. Phong on purpose — the
+// specular map is what makes only the oceans catch sunlight.
 function makeEarth(radius, { clouds = true } = {}) {
   const group = new THREE.Group();
   group.rotation.z = 0.41;   // 23.4° axial tilt
@@ -1400,10 +1359,8 @@ function makeEarth(radius, { clouds = true } = {}) {
 // Every starship plume registers here so animate() can flicker them in one pass.
 const PLUMES = [];
 
-// Stylized stainless Starship, fully procedural: lathe hull (tank + ogive nose),
-// black windward heat-shield, fore/aft flaps, Raptor cluster, and a flickering plume
-// (`userData.plume`, on only during powered phases). Nose +Y; the envelope (radius
-// ~0.5, base y≈-1.55, tip y≈4.15) matches the original so choreography still lines up.
+// Procedural stainless Starship: lathe hull, windward heat-shield, flaps, Raptors,
+// flickering plume. Nose +Y; envelope (r~0.5, y -1.55..4.15) is what choreography assumes.
 function makeStarship(scale = 1) {
   const group = new THREE.Group();
   const V = THREE.Vector2;
@@ -1420,15 +1377,13 @@ function makeStarship(scale = 1) {
     prof.push(new V(0.50 * Math.cos(th), NB + NL * Math.sin(th)));
   }
 
-  // Albedo kept below the 0.82 bloom threshold so the body reads as shaded steel;
-  // only the tight specular glints cross it and bleed, like sun catching the hull.
+  // Albedo below the bloom threshold — only specular glints bleed, like sun on the hull.
   const steel = new THREE.MeshPhongMaterial({
     color: 0x595e66, shininess: 150, specular: 0x868d96, emissive: 0x070a0d,
   });
   group.add(new THREE.Mesh(new THREE.LatheGeometry(prof, 72), steel));
 
-  // Black windward heat-shield: the same profile, nudged outward, swept over a
-  // half turn so one face reads as the dark tiled side (the iconic two-tone).
+  // Heat-shield: same profile nudged outward, swept a half turn for the two-tone look.
   const tile = new THREE.MeshPhongMaterial({ color: 0x141619, shininess: 10, specular: 0x232a31 });
   const shieldProf = prof.filter((p) => p.y >= -1.36 && p.x > 0.02)
                          .map((p) => new V(p.x * 1.015 + 0.004, p.y));
@@ -1463,8 +1418,7 @@ function makeStarship(scale = 1) {
   centerNozzle.position.y = -1.62; centerNozzle.scale.setScalar(1.15);
   group.add(centerNozzle);
 
-  // Layered engine plume (Group): white-hot core + blue body + diffuse halo +
-  // a bright throat seed that bloom turns into a flare. animatePlumes() flickers it.
+  // Layered plume: hot core + blue body + halo + a throat seed bloom turns into a flare.
   const plume = new THREE.Group();
   const cone = (rad, len, color, opacity) => {
     const m = new THREE.Mesh(
@@ -1496,8 +1450,7 @@ function makeStarship(scale = 1) {
   return group;
 }
 
-// Flicker every powered plume in one pass: jitter length/opacity so the exhaust
-// shimmers like a real throttled engine instead of sitting as a static cone.
+// Jitter every powered plume's length/opacity so the exhaust shimmers.
 function animatePlumes(t) {
   for (const p of PLUMES) {
     if (!p.visible) continue;
@@ -1536,13 +1489,9 @@ class LabelSet {
   }
 }
 
-// Mission Plan — a guided, narrated flight sequence layered over a view.
-//
-// A view opts in by defining `planTitle`, `planSub`, `planPhases` (an ordered
-// list of {title, sub, detail, dv, dur, cam}), and three hooks: onPlanStart(),
-// onPlanStop(restoreCam), and runPhase(idx, p, dt, speed) — where `p` is the
-// current phase's 0→1 progress. The director sequences the phases; missionUI
-// renders the timeline bar + the stepped info-panel.
+// Mission Plan director. A view opts in with `planTitle`, `planSub`, `planPhases`
+// ({title, sub, detail, dv, dur, cam}) and hooks onPlanStart(), onPlanStop(restoreCam),
+// runPhase(idx, p, dt, speed) where `p` is the phase's 0→1 progress.
 class MissionDirector {
   constructor(view) {
     this.view = view;
@@ -1580,9 +1529,8 @@ class MissionDirector {
   _enter(i) {
     this.idx = i; this.t = 0;
     const ph = this.phases[i];
-    // Attitude continuity across the seat: remember the incoming nose, let the phase
-    // pose itself, then blend out of the old attitude over a window sized by the
-    // gap — phases whose entry is already continuous see a no-op.
+    // Attitude continuity: remember the incoming nose, let the phase pose itself,
+    // then blend out of the old attitude over a window sized by the gap.
     const craft = this.view.planCraft && this.view.planCraft();
     const blendFrom = craft && i > 0;
     if (blendFrom) (this._entryQ || (this._entryQ = new THREE.Quaternion())).copy(craft.quaternion);
@@ -1593,9 +1541,8 @@ class MissionDirector {
       if (gap > 0.02) {
         this._blend = Math.min(Math.max(gap / 2.2, 0.25), 1.2);   // ~126°/s, 0.25–1.2 s
         this._blendT = 0;                      // real seconds — the slew never speeds up
-        // Keep the correction as a world-frame offset that decays to identity: a
-        // slerp toward the phase's (moving) pose can cross the 180° seam mid-blend
-        // and kick the nose; a shrinking fixed offset cannot.
+        // Decay a fixed world-frame offset: a slerp toward the moving pose can cross
+        // the 180° seam mid-blend and kick the nose; a shrinking offset cannot.
         (this._offQ || (this._offQ = new THREE.Quaternion()))
           .copy(craft.quaternion).invert().premultiply(this._entryQ);
         craft.quaternion.copy(this._entryQ);   // the seat frame keeps the incoming attitude
@@ -1743,8 +1690,7 @@ class SolarView extends View {
     this.focusByNameMap = {}; // name → focus info, for the top-right picker box
   }
   build() {
-    // Intensity sits just under the bloom threshold for the brightest albedo
-    // (Uranus) — any hotter and whole planet discs start to bloom blockily.
+    // Just under the bloom threshold for the brightest albedo (Uranus).
     this.root.add(new THREE.PointLight(0xfff4cc, 2.1, 6000, 1.0));
 
     const SUN_R = 14;
@@ -1788,8 +1734,7 @@ class SolarView extends View {
   update(dt, speed) {
     animateSun(this.sunGroup, dt, speed, clock.getElapsedTime());
     if (this.focused) {
-      // Orbits frozen so the framed body holds still; keep a gentle axial spin
-      // (independent of the speed slider) for the slow 360 reveal.
+      // Orbits frozen while focused; gentle slider-independent spin for the reveal.
       this.focused.mesh.rotation.y += 0.25 * dt;
       return;
     }
@@ -1807,9 +1752,7 @@ class SolarView extends View {
     if (info) this.focusOn(info);
   }
 
-  // Click-to-focus: frame one body for a slow turntable close-up.
-  // Planets are framed from their sunlit side (the Sun sits at the origin), so
-  // the close-up shows a ¾-lit face instead of a backlit silhouette.
+  // Frame one body for a turntable close-up, from its sunlit side (¾-lit, not backlit).
   focusOn(info) {
     this.focused = info;
     this.labels.setVisible(false);   // declutter — the panel names the body
@@ -1933,8 +1876,7 @@ class EarthMoonView extends View {
     this.root.add(this.moonPivot);
     this.labels.add(this.moon, 'Moon', { offset: 14, faint: true });
 
-    // Moon-base marker: an emissive diamond pinned above the Moon + a reminder
-    // label. Plans are TBD, so this just flags the intended site.
+    // Moon-base marker (plans TBD — just flags the intended site).
     const pin = new THREE.Mesh(
       new THREE.OctahedronGeometry(0.9),
       new THREE.MeshBasicMaterial({ color: 0x7fd0ff })
@@ -2091,8 +2033,7 @@ class EarthMoonView extends View {
       this._leoPoint(a + 0.02, _v3);
       ship.lookAt(_v3); ship.rotateX(Math.PI / 2);
 
-      // The tanker trails on the same orbit and slides up belly-to-belly —
-      // a real rendezvous instead of materialising from below.
+      // Tanker trails the same orbit and slides up belly-to-belly — a real rendezvous.
       this.tanker.visible = true;
       const dock = _easeInOut(Math.min(p * 1.6, 1));
       this._leoPoint(a - 0.5 * (1 - dock), this.tanker.position);
@@ -2145,8 +2086,7 @@ class EarthMoonView extends View {
     }
   }
 
-  // Side-panel content; the active step lights up as the craft advances. Mirrors
-  // MarsView._renderPanel so both tabs read the same way.
+  // Side-panel content; mirrors MarsView._renderPanel so both tabs read the same way.
   _renderPanel(active) {
     const steps = [
       ['Parking Orbit', '~200 km low Earth orbit', 'Starship circularises in LEO and coasts, waiting on the tankers.', ''],
@@ -2165,8 +2105,7 @@ class EarthMoonView extends View {
     );
   }
 
-  // Four-phase narrative loop: LEO orbit → orbital refuel → trans-lunar
-  // injection → lunar arrival, then repeat. `missionT` runs 0→1.
+  // Ambient four-phase loop (LEO → refuel → TLI → arrival); `missionT` runs 0→1.
   _mission(dt, speed) {
     this.missionT = (this.missionT + 0.04 * speed * dt) % 1;
     const t = this.missionT;
@@ -2229,13 +2168,11 @@ class EarthMoonView extends View {
 }
 
 // 3. Earth → Moon → Mars (heliocentric + Hohmann transfer)
-// Moon angular rate (rad/s of mission time) while a Mars plan is running or holding
-// its arrival frame. Fast enough to read as a live orbit (~2 laps per mission), low
-// enough that the Lunar Staging approach never chases a target sweeping >100°/phase.
+// Moon rate during a Mars plan: reads as a live orbit, but slow enough that the
+// Lunar Staging approach never chases a target sweeping >100°/phase.
 const MARS_PLAN_MOON_RATE = 0.28;
-// Attitude slew cap (rad/s) for the motion-aimed nose on the heliocentric legs —
-// well above any legitimate turn rate on the arc (~0.5 rad/s at max speed), low
-// enough that a residual estimator step can never read as a snap.
+// Nose slew cap (rad/s): above any legitimate turn rate on the arc (~0.5 at max
+// speed), low enough that a residual estimator step never reads as a snap.
 const MARS_AIM_RATE = 2.5;
 
 class MarsView extends View {
@@ -2250,9 +2187,8 @@ class MarsView extends View {
       'Phase detail in the side panel →';
     this.activeStep = -1;   // tracks which panel step is lit (avoid DOM thrash)
 
-    // Mission Plan: the full crewed Mars campaign — lunar staging, then the
-    // real 2026 interplanetary transfer. Phases 0–3 play locally around Earth;
-    // 4–7 hand off to the solved Lambert arc in the heliocentric frame.
+    // Full Mars campaign: phases 0–3 play locally around Earth, 4–7 hand off to
+    // the solved Lambert arc in the heliocentric frame.
     this.director = new MissionDirector(this);
     this.planTitle = 'EARTH → MOON → MARS';
     this.planSub = 'Crewed Mars campaign · Starship';
@@ -2305,9 +2241,8 @@ class MarsView extends View {
     this.root.add(this.sunGroup);
     this.labels.add(this.sun, 'Sun', { offset: SUN_R + 8 });
 
-    // Real heliocentric tracks (AU) from the solved Lambert arc, mapped to scene units.
-    // craft/earth/mars share one time base, so progress 0→1 plays the actual rendezvous:
-    // Mars's lead angle at departure, the craft catching it at arrival.
+    // Real heliocentric tracks from the solved Lambert arc; craft/earth/mars share
+    // one time base, so progress 0→1 plays the actual rendezvous geometry.
     this.craftPts = MISSION_ARC.craft.map(auVecToUnits);
     this.earthPts = MISSION_ARC.earth.map(auVecToUnits);
     this.marsPts  = MISSION_ARC.mars.map(auVecToUnits);
@@ -2363,10 +2298,8 @@ class MarsView extends View {
 
     // Starship riding the arc (oriented along the transfer tangent).
     this.craftScale = 0.9;
-    this.marsShellR = 8;              // closest rendered approach to Mars' centre — clears the
-                                      // globe (3.5) + haze even with the 3.74-unit nose pointed in
-    this.earthShellR = 7.5;           // same idea at the departure end — the arc's Earth-relative
-                                      // distance stays under the globe (r 5) until ~30% of the flight
+    this.marsShellR = 8;              // closest rendered approach — clears the globe + haze + nose
+    this.earthShellR = 7.5;           // ditto at departure; the raw arc sits inside Earth's globe early on
     this.craft = makeStarship(this.craftScale);
     this.craft.position.copy(this.craftPts[0]);
     this.root.add(this.craft);
@@ -2405,9 +2338,8 @@ class MarsView extends View {
     return out.add(this.E);
   }
 
-  // Depot geometry in low Mars orbit: local vertical `up` (back along the Mars-relative
-  // approach corridor — NOT the heliocentric tangent, which points somewhere else entirely),
-  // the hover slot, and the sideways berth axis. Recomputed per frame — Mars still moves.
+  // Depot geometry in low Mars orbit. `up` runs back along the Mars-relative approach
+  // corridor (NOT the heliocentric tangent); recomputed per frame — Mars still moves.
   _marsStation(up, hover, side) {
     const i = Math.floor((this.craftPts.length - 1) * 0.9);
     up.copy(this.craftPts[i]).sub(this.marsPts[i]).normalize();
@@ -2416,19 +2348,14 @@ class MarsView extends View {
     side.crossVectors(up, _YAXIS).normalize();
   }
 
-  // TMI staging slot: a fixed Earth-relative point on the departure corridor just
-  // past the Moon's orbit radius (the Moon is crossing the corridor right then).
+  // TMI staging slot: fixed Earth-relative point on the departure corridor.
   _departHold(out) {
     return out.copy(this.earth.position).addScaledVector(this._escDir, this._holdLen);
   }
 
-  // Departure display path (Earth-relative) from the corridor hold onto the raw
-  // Lambert arc, for prog ∈ [0.02, joinProg]. The raw track sits inside Earth's
-  // globe for the first stretch of the flight, so it can't be ridden directly:
-  // per sample, bearing swings corridor→raw and radius lerps holdLen→rawLen, both
-  // through smooth01 — monotone in radius (never back toward Earth) and C1 at the
-  // join by construction (smooth01 has zero slope at both ends, so the path leaves
-  // the hold at rest and lands on the arc matching its direction and rate).
+  // Departure display path from the corridor hold onto the raw Lambert arc (which sits
+  // inside Earth's globe early on, so it can't be ridden directly). Bearing and radius
+  // both blend through smooth01 — monotone in radius and C1 at the join by construction.
   _buildDepartPath() {
     const last = this.craftPts.length - 1, n = 64;
     const pts = [];
@@ -2444,8 +2371,7 @@ class MarsView extends View {
       const dir = _v1.copy(this._escDir).lerp(rel, w).normalize();
       pts.push(dir.clone().multiplyScalar(this._holdLen + (Math.max(rawLen, this._holdLen) - this._holdLen) * w));
     }
-    // Two light smoothing passes iron out the sample-grid kinks; the ends (and so
-    // the hold/join tangents) stay untouched.
+    // Two smoothing passes iron out sample-grid kinks; the end tangents stay untouched.
     for (let pass = 0; pass < 2; pass++)
       for (let k = 2; k < pts.length - 2; k++)
         pts[k].lerp(_v0.copy(pts[k - 1]).add(pts[k + 1]).multiplyScalar(0.5), 0.5);
@@ -2458,9 +2384,8 @@ class MarsView extends View {
     return out.copy(this._depPath[i]).lerp(this._depPath[i + 1], f - i);
   }
 
-  // Place every body for a heliocentric progress value (shared by the arc & the plan).
-  // Position only — the nose is aimed separately by _aimCraft. Returns the shell-pin
-  // weight (0..1) with the radial-out direction saved in _pinDir for the aim bias.
+  // Place every body for a heliocentric progress value; position only (the nose is
+  // _aimCraft's job). Returns the shell-pin weight, radial-out direction in _pinDir.
   _placeFlight(prog) {
     const last = this.craftPts.length - 1;
     const f = Math.max(0, Math.min(prog, 1)) * last;
@@ -2470,12 +2395,9 @@ class MarsView extends View {
     this.moonPivot.position.copy(this.earth.position);
     this.mars.position.copy(lerp(this.marsPts));
     this.craft.position.copy(lerp(this.craftPts));
-    // The raw arc converges on *both* planets' centres (real ephemeris vs exaggerated
-    // globes) — inside Earth for the first ~15%, and the compressed frame keeps it
-    // within Mars's shell range from roughly halfway out. Pin the rendered craft to a
-    // standoff shell around each; the Mars pin is progress-gated (0 until 0.55, full
-    // by 0.8) so the cruise rides the raw arc and the shell only takes over on
-    // approach. Returns the pin weight (0..1); radial-out direction is left in _v5.
+    // The raw arc converges on both planets' centres (real ephemeris vs exaggerated
+    // globes), so pin the rendered craft to a standoff shell around each. The Mars pin
+    // is progress-gated so the cruise rides the raw arc until final approach.
     const pin = (body, shellR, fa, fb, g = 1) => {
       if (g <= 0) return 0;
       const rel = _v6.copy(this.craft.position).sub(body);
@@ -2485,8 +2407,7 @@ class MarsView extends View {
       rel.normalize();
       if (d < shellR) this.craft.position.lerp(_v4.copy(body).addScaledVector(rel, shellR), g);
       _v5.copy(rel);
-      // The aim bias keeps a radial-out component until *twice* the shell, so the
-      // nose eases off the globe-hugging slide instead of whipping to the tangent.
+      // Keep a radial-out aim bias out to 2× the shell so the nose eases off, not whips.
       return (1 - d / (2 * shellR)) * g;
     };
     const w = Math.max(
@@ -2499,14 +2420,10 @@ class MarsView extends View {
   }
 
   // Aim the nose along the craft's rendered frame-to-frame motion — the one attitude
-  // authority for every heliocentric segment (ambient loop, cruise merge, MOI approach).
-  // The rendered path is smooth everywhere the analytic tangents were not (the raw arc
-  // dives inside both globes, the depart-path tangent lives in Earth's frame, and the
-  // shell-pinned craft sits next to its own polyline samples — each a source of nose
-  // pops), so differencing what's actually drawn is both simpler and glitch-free.
-  // `radialW` (shell-pin weight) biases the nose radial-out near a globe, and the
-  // rotateTowards cap keeps any residual estimator step below visibility. Seat calls
-  // pass no dt and snap; callers null _aimPrev across teleports (plan start, loop wrap).
+  // authority for every heliocentric segment. Differencing what's actually drawn is
+  // glitch-free where the analytic tangents were not (they dive inside globes / live in
+  // the wrong frame). Seat calls pass no dt and snap; callers null _aimPrev across
+  // teleports (plan start, loop wrap).
   _aimCraft(dt, radialW) {
     const pos = this.craft.position;
     if (!this._aimPrev) { this._aimPrev = pos.clone(); return; }
@@ -2515,8 +2432,7 @@ class MarsView extends View {
     if (_v6.lengthSq() < 1e-10) return;            // holding still — keep the attitude
     _v6.normalize();
     if (radialW > 0 && this._pinDir) _v6.lerp(this._pinDir, _smooth01(radialW)).normalize();
-    // Exponentially smooth the estimate — raw per-frame differences tick between
-    // polyline samples (~1.5° kinks); a ~0.12 s horizon averages them out.
+    // Exponential smoothing over ~0.12 s averages out the ~1.5° polyline-sample kinks.
     if (dt > 0) {
       const dir = this._aimDir || (this._aimDir = _v6.clone());
       dir.lerp(_v6, 1 - Math.exp(-dt / 0.12)).normalize();
@@ -2577,9 +2493,8 @@ class MarsView extends View {
   onPlanStart() {
     this._escDir = (this._escDir || new THREE.Vector3())
       .copy(this.craftPts[1]).sub(this.earthPts[1]).normalize();
-    // The Moon keeps orbiting through the whole plan — seeded so it crosses the
-    // departure corridor exactly as Lunar Departure ends, then it carries on past.
-    // Never parked on the arc, never dead.
+    // The Moon orbits through the whole plan, seeded to cross the departure corridor
+    // exactly as Lunar Departure ends — never parked, never dead.
     this._moonRate = MARS_PLAN_MOON_RATE;                        // rad/s of phase time
     const tDepart = this.planPhases.slice(0, 4).reduce((s, ph) => s + ph.dur, 0);
     this._moonA0 = Math.atan2(-this._escDir.z, this._escDir.x) - this._moonRate * tDepart;
@@ -2592,8 +2507,7 @@ class MarsView extends View {
     this.progress = 0;
     this._aimPrev = this._aimDir = null;           // staging teleports the craft off the arc
     this._parkAMars = -0.4;                        // parking slot; normally re-set by phase 0
-    // TMI hold: a fixed Earth-relative slot on the corridor just past the Moon's
-    // orbit radius — decoupled from the live Moon so the burn and merge sit still.
+    // TMI hold: fixed Earth-relative slot, decoupled from the live Moon so the burn sits still.
     this._holdLen = 11 + 4.2;
     const last = this.craftPts.length - 1;
     let j = last;
@@ -2631,8 +2545,6 @@ class MarsView extends View {
     plume.visible = false;
     plume.userData.fade = 1;            // full burn unless a phase tapers it (landing)
 
-    // The Moon orbits through the whole plan — seeded (onPlanStart) to cross the
-    // departure corridor exactly as Lunar Departure ends.
     this.moonPivot.rotation.y = this._moonA0 + this._moonRate * this.director.elapsed;
 
     if (idx <= 3) {                     // Local staging around Earth/Moon
@@ -2685,8 +2597,7 @@ class MarsView extends View {
           const from = this._descentFrom || _v0.copy(moon).add(_v2.set(0, this.moonRMars + 7, 0));
           const land = _v1.copy(moon).add(_v3.set(0, this.moonRMars + 0.8, 0));
           craft.position.copy(from).lerp(land, k);
-          // Ease from the approach attitude to upright across the whole descent —
-          // on raw progress, not the eased k, so the swing rate stays low mid-drop.
+          // Upright on raw progress, not eased k, so the swing rate stays low mid-drop.
           const q0 = this._descentQ || _IDENTITY_Q;
           craft.quaternion.copy(q0).slerp(_IDENTITY_Q, _smooth01((p - 0.7) / 0.3));
           plume.userData.fade = 1 - _smooth01((k - 0.55) / 0.45);   // retro burn tapers to touchdown
@@ -2696,8 +2607,7 @@ class MarsView extends View {
       } else {                          // idx 3 — Lunar departure: lift off onto the corridor
         const moon = this.moonWorldMars(_v1);
         const start = _v0.copy(moon); start.y += this.moonRMars + 0.8;
-        // Staging slot just past the Moon's orbit radius — the Moon is crossing
-        // the corridor right now, so the hop is outbound, never back toward Earth.
+        // The Moon is crossing the corridor right now, so the hop is outbound.
         const hold = this._departHold(_v5);
         const ctrl = _v3.copy(start).lerp(hold, 0.5); ctrl.y += 2.5;
         const k = _easeInOut(p);
@@ -2726,14 +2636,12 @@ class MarsView extends View {
         this.progress = prog;
         return;
       } else if (idx === 5) {           // Cruise
-        // Eased so the handoffs are velocity-continuous: TMI ends at rate 0 and
-        // MOI starts at rate 0, so a linear coast lurches at both boundaries.
+        // Eased so the TMI/MOI handoffs are velocity-continuous (a linear coast lurches).
         prog = 0.02 + _easeInOut(p) * 0.90;
         const pinW = this._placeFlight(prog);
         const s = (prog - 0.02) / (this._joinProg - 0.02);
         if (s < 1) {
-          // Ride the precomputed departure path off the hold and onto the arc;
-          // the nose just follows the rendered motion (_aimCraft below).
+          // Ride the precomputed departure path off the hold and onto the arc.
           craft.position.copy(this.earth.position).add(this._departPoint(s, _v0));
           craft.scale.setScalar(0.5 + (this.craftScale - 0.5) * _smooth01(s));
           plume.userData.fade = 1 - _smooth01((s - 0.85) / 0.15);  // burn through the peel-off
@@ -2825,8 +2733,7 @@ const manager = {
     }
   },
 
-  // Ease the camera in to frame a single body, then hand off to the OrbitControls
-  // turntable (slow auto-rotate) once the transition lands.
+  // Ease in to frame a body, then hand off to the slow auto-rotate turntable.
   focusCamera(pos, target, min, max) {
     controls.autoRotate = false;   // off during the glide, on once we arrive
     this._focusPending = true;
@@ -2847,10 +2754,8 @@ const manager = {
     this.ease = { fromPos: camera.position.clone(), toPos: pos.clone(),
                   fromTgt: controls.target.clone(), toTgt: target.clone(), t: 0, dur };
   },
-  // Locked-follow shot for a Mission Plan phase: the camera is glued to the moving
-  // subject (anchorFn → world position) but the USER owns the framing — drag orbits,
-  // the zoom slider dollies, and both survive across phases. Each phase only eases
-  // toward a suggested starting offset; any user input cancels that suggestion.
+  // Locked-follow shot: camera glued to the moving subject, but the USER owns the
+  // framing — each phase only suggests an offset, and any input cancels it.
   startFollow(cam) {
     const { track, back, up } = cam;
     controls.autoRotate = false;
@@ -2864,11 +2769,9 @@ const manager = {
       controls.maxDistance = band.max;
       controls.enablePan = false;            // drag = orbit only; the target is the ship
     }
-    // Suggested offset: when the phase supplies a heading, frame off the flight path —
-    // `az` swings the eye from dead astern (0) around to broadside (π/2), always lifted
-    // `up`. Degenerate headings (ship pointing straight up) and legacy phases fall back
-    // behind the current camera→subject line so re-framing stays continuous. If the
-    // user has dollied, keep their distance either way.
+    // Suggested offset off the flight path: `az` swings from dead astern (0) to broadside
+    // (π/2). Degenerate headings and legacy phases fall back behind the current
+    // camera→subject line; if the user has dollied, keep their distance either way.
     let to = null;
     if (cam.az != null && cam.heading) {
       const h = _headV.copy(cam.heading());
@@ -2888,16 +2791,13 @@ const manager = {
     }
     if (this.follow && this._userZoomed)
       to.setLength(Math.max(camera.position.distanceTo(anchor), controls.minDistance));
-    // First follow of a plan: the camera is still parked on the tab framing, so the
-    // look-target eases over from wherever it was instead of snapping to the ship.
-    // Same if the previous follow's target-ease is still in flight (fast phases can
-    // end before it lands) — pick up from the current target, never snap it.
+    // Ease the look-target over from wherever it is (tab framing, or a still-in-flight
+    // previous ease) instead of snapping it to the ship.
     const fromTgt = (!this.follow || (this.follow.ease && this.follow.ease.fromTgt))
       ? controls.target.clone() : null;
     const from = camera.position.clone().sub(fromTgt ?? anchor);
-    // Pace the re-frame by how far it actually swings/dollies — a broadside flip or
-    // the plan-start dolly becomes a deliberate glide, a small nudge stays snappy —
-    // capped so even an approach from the tab framing never eats half a phase.
+    // Pace the re-frame by how far it actually swings/dollies, capped so an approach
+    // from the tab framing never eats half a phase.
     const dur = Math.min(2.5, Math.max((cam.tau ?? 0.6) * 1.6,
                          from.angleTo(to) / CAM_SWEEP_RATE,
                          Math.abs(from.length() - to.length()) / CAM_DOLLY_RATE));
@@ -2931,9 +2831,8 @@ const manager = {
         if (this._focusPending) { controls.autoRotate = true; controls.autoRotateSpeed = 0.8; this._focusPending = false; }
       }
     } else if (this.follow) {
-      // Locked follow: carry the camera by the subject's frame-to-frame motion so
-      // the user's orbit angle and zoom distance survive — teleports included —
-      // then let OrbitControls apply drag + damping around the live target.
+      // Carry the camera by the subject's frame-to-frame motion (user's orbit angle and
+      // zoom survive, teleports included), then let OrbitControls apply drag + damping.
       const f = this.follow;
       const anchor = f.anchor();
       _chaseV.subVectors(anchor, f.prev);
@@ -2944,9 +2843,8 @@ const manager = {
         f.ease.t += dt / f.ease.dur;
         const k = Math.min(f.ease.t, 1);
         const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
-        // Arc around the subject rather than cutting a straight chord past it:
-        // the offset direction slerps and its length lerps, so bearing and distance
-        // each change monotonically and the eye never dives through the near field.
+        // Arc around the subject rather than cutting a chord past it: direction slerps,
+        // length lerps, so the eye never dives through the near field.
         const o0 = f.ease.from, o1 = f.ease.to;
         _camOff.copy(o0).normalize();
         const ang = _camOff.angleTo(_v0.copy(o1).normalize());
@@ -2983,8 +2881,7 @@ const manager = {
   },
 };
 
-// A drag during a mission follow-shot cancels the phase's framing suggestion —
-// the user has taken the camera; their angle sticks until the next phase.
+// A drag during a follow-shot cancels the phase's framing suggestion — the user's angle sticks.
 controls.addEventListener('start', () => { if (manager.follow) manager.follow.ease = null; });
 
 // Tab + keyboard wiring
@@ -3004,9 +2901,8 @@ window.addEventListener('keydown', (ev) => {
   }
 });
 
-// Click-to-focus: pick a planet/Sun in the Solar System view
-// A raycaster turns pointer taps into body selections. We distinguish a click
-// from an OrbitControls drag by measuring pointer travel between down and up.
+// Click-to-focus raycasting; a click is distinguished from an OrbitControls drag
+// by pointer travel between down and up.
 const _ray = new THREE.Raycaster();
 const _ptr = new THREE.Vector2();
 const _down = { x: 0, y: 0 };
@@ -3038,9 +2934,7 @@ canvas.addEventListener('pointermove', (ev) => {
   canvas.style.cursor = _pickFocus(ev) ? 'pointer' : '';
 });
 
-// Mission Plan launch button
-// Starts (or replays) the guided flight sequence for the current view. While a
-// sequence is playing the button is inert — exit/replay live on the timeline bar.
+// Mission Plan launch button; inert while a sequence plays (exit/replay live on the bar).
 missionCta.addEventListener('click', () => {
   const v = views[manager.activeId];
   if (!v || !v.director || v.director.active) return;
@@ -3053,9 +2947,8 @@ speedInput.addEventListener('input', () => {
   speedLabel.textContent = parseFloat(speedInput.value).toFixed(2) + '×';
 });
 
-// Zoom control — slider drives the camera's distance from its target (the wheel is
-// disabled above). Log-mapped across the live [minDistance, maxDistance] band so the
-// full slider travel spans whatever zoom range the current view/focus allows.
+// Zoom slider drives camera distance (wheel is disabled above), log-mapped across
+// the live [minDistance, maxDistance] band.
 const zoomInput = document.getElementById('zoom');
 const distFromSlider = (z) => {
   const min = controls.minDistance, max = controls.maxDistance;
@@ -3080,9 +2973,8 @@ zoomInput.addEventListener('input', () => {
   applyZoom(distFromSlider(parseFloat(zoomInput.value)));
   controls.update();
 });
-// Keep the thumb reflecting the true distance through eased glides, focus and tab
-// switches. applyZoom sets the distance to exactly match the slider, so reading it back
-// yields the same value — no feedback fight, no drag flag needed.
+// Keep the thumb reflecting the true distance; applyZoom matches the slider exactly,
+// so reading it back can't feedback-fight.
 function syncZoomSlider() {
   _zoomV.subVectors(camera.position, controls.target);
   zoomInput.value = sliderFromDist(_zoomV.length());

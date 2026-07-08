@@ -4,16 +4,11 @@ const Jimp = require('jimp');
 const fs = require('fs');
 const path = require('path');
 
-// Records the two guided Mission Plan sequences (Moon and Mars views) to
-// half-size README tiles: moon-mission.gif + mars-mission.gif. Mirrors
-// capture_gif.js — same puppeteer -> gif-encoder-2 -> jimp pipeline — but
-// captures at the hero GIF's viewport and downscales 4x, so the pair stacks
-// under dashboard.gif as a perfectly aligned 2-up row.
-//
-// Capture runs on VIRTUAL time: requestAnimationFrame and performance.now()
-// are stubbed so the page only advances when __tick(ms) is called. Screenshot
-// latency (~270 ms real) therefore no longer caps the frame rate — every GIF
-// frame is exactly STEP_MS of animation apart, giving smooth uniform 10 fps.
+// Records the two Mission Plan sequences to half-size README tiles
+// (moon-mission.gif + mars-mission.gif), same pipeline as capture_gif.js.
+// Capture runs on VIRTUAL time — rAF and performance.now() are stubbed so the page
+// only advances on __tick(ms), making every GIF frame exactly STEP_MS apart
+// regardless of screenshot latency.
 
 const VIEW_W = 1200;
 const VIEW_H = 502;             // hero viewport — identical layout/UI to dashboard.gif
@@ -30,13 +25,10 @@ async function main() {
   });
 
   const page = await browser.newPage();
-  // 2x supersample like capture_gif.js; the 2400x1004 screenshots downscale to
-  // 600x251 (4x) below — keeps the small tiles crisp.
   await page.setViewport({ width: VIEW_W, height: VIEW_H, deviceScaleFactor: 2 });
 
-  // Virtual-clock harness, installed before any page script runs. The page's
-  // single rAF loop reads time through THREE.Clock (performance.now), so
-  // overriding both freezes it entirely between __tick calls.
+  // Virtual-clock harness, installed before any page script runs; overriding both
+  // rAF and performance.now freezes the page entirely between __tick calls.
   await page.evaluateOnNewDocument(() => {
     let vt = 0;
     const queue = [];
@@ -53,22 +45,19 @@ async function main() {
   await page.goto(`file://${htmlPath}`);
   await new Promise(r => setTimeout(r, 3000));   // real wait: CDN textures load off-clock
 
-  // With rAF stubbed the page is frozen until pumped — advance virtual time in
-  // sub-50ms steps (animate() clamps dt at 0.05 s; bigger ticks would drop time).
+  // Pump virtual time in sub-50ms steps — animate() clamps dt at 0.05 s.
   const pump = ms => page.evaluate(async (total) => {
     for (let t = 0; t < total; t += 50) window.__tick(50);
   }, ms);
   await pump(2000);              // let init + boot camera ease settle
 
-  // Speed 2 -> director rate 1.45x (solar_system.html: rate = 0.55 + 0.45*min(speed,4))
-  // — brisk enough to keep the GIFs short without rushing the phase captions.
+  // Speed 2 -> director rate 1.45x: keeps the GIFs short without rushing the captions.
   await page.evaluate(() => {
     const slider = document.getElementById('speed');
     slider.value = 2.0;
     slider.dispatchEvent(new Event('input'));
   });
 
-  // Run one view's full plan sequence and return its frames.
   async function captureMission(view) {
     await page.evaluate(v => document.querySelector(`.tab[data-view="${v}"]`).click(), view);
     await pump(900);            // let the tab-switch camera ease settle

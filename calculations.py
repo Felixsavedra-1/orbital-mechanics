@@ -22,11 +22,7 @@ def calculate_orbital_velocity(
     central_mass_kg: float,
     gravitational_constant: float = G,
 ) -> float:
-    """Return circular orbital velocity in km/s.  v = sqrt(GM / r)
-
-    Raises:
-        ValueError: If any argument is <= 0.
-    """
+    """Circular orbital velocity in km/s: v = sqrt(GM / r). Raises ValueError for non-physical inputs."""
     _validate_inputs(radius_m, central_mass_kg, gravitational_constant)
     velocity_m_per_s = math.sqrt((gravitational_constant * central_mass_kg) / radius_m)
     return velocity_m_per_s / _M_PER_KM
@@ -37,11 +33,7 @@ def calculate_orbital_period(
     central_mass_kg: float,
     gravitational_constant: float = G,
 ) -> float:
-    """Return orbital period in hours using Kepler's third law.  T = 2π * sqrt(r³ / GM)
-
-    Raises:
-        ValueError: If any argument is <= 0.
-    """
+    """Orbital period in hours (Kepler's third law): T = 2π * sqrt(r³ / GM)."""
     _validate_inputs(radius_m, central_mass_kg, gravitational_constant)
     period_s = 2 * math.pi * math.sqrt(radius_m**3 / (gravitational_constant * central_mass_kg))
     return period_s / _S_PER_HOUR
@@ -52,11 +44,7 @@ def calculate_escape_velocity(
     central_mass_kg: float,
     gravitational_constant: float = G,
 ) -> float:
-    """Return escape velocity in km/s.  v_esc = sqrt(2GM / r)
-
-    Raises:
-        ValueError: If any argument is <= 0.
-    """
+    """Escape velocity in km/s: v_esc = sqrt(2GM / r)."""
     _validate_inputs(radius_m, central_mass_kg, gravitational_constant)
     velocity_m_per_s = math.sqrt((2 * gravitational_constant * central_mass_kg) / radius_m)
     return velocity_m_per_s / _M_PER_KM
@@ -72,13 +60,7 @@ def calculate_vis_viva_velocity(
     central_mass_kg: float,
     gravitational_constant: float = G,
 ) -> float:
-    """Return orbital speed at radius r_m on an ellipse with given semi-major axis, in km/s.
-
-    v = sqrt(GM * (2/r - 1/a)). For a circular orbit (r == a) equals calculate_orbital_velocity.
-
-    Raises:
-        ValueError: If inputs are non-positive, non-finite, or 2/r - 1/a < 0.
-    """
+    """Vis-viva speed at radius r_m on an ellipse with semi-major axis a, in km/s: v = sqrt(GM * (2/r - 1/a))."""
     _validate_inputs(r_m, central_mass_kg, gravitational_constant)
     require_positive_finite("semi_major_axis_m", semi_major_axis_m)
     discriminant = 2.0 / r_m - 1.0 / semi_major_axis_m
@@ -96,13 +78,10 @@ def calculate_hohmann_delta_v(
     central_mass_kg: float,
     gravitational_constant: float = G,
 ) -> tuple[float, float]:
-    """Return (departure_dv_km_s, arrival_dv_km_s) for a Hohmann transfer between circular orbits.
+    """(departure, arrival) delta-v in km/s for a Hohmann transfer between circular orbits.
 
-    Both values are positive for ascending transfers (r2 > r1).
-    For descending transfers (r2 < r1) both values are negative (deceleration burns); take abs() for budget math.
-
-    Raises:
-        ValueError: If r1_m, r2_m, central_mass_kg, or gravitational_constant are <= 0 or non-finite.
+    Positive for ascending transfers (r2 > r1); negative (deceleration burns) for
+    descending ones — take abs() for budget math.
     """
     _validate_inputs(r1_m, central_mass_kg, gravitational_constant)
     require_positive_finite("r2_m", r2_m)
@@ -119,15 +98,7 @@ def calculate_hohmann_delta_v(
 
 
 def calculate_mass_ratio(delta_v_ms: float, isp_s: float) -> float:
-    """Return Tsiolkovsky rocket mass ratio m0/mf (>= 1.0).
-
-    delta_v_ms: required delta-v in m/s (>= 0)
-    isp_s:      specific impulse in seconds (> 0)
-    Formula: m0/mf = exp(delta_v / (Isp * g0))
-
-    Raises:
-        ValueError: If delta_v_ms < 0 or not finite; if isp_s <= 0 or not finite.
-    """
+    """Tsiolkovsky mass ratio m0/mf = exp(delta_v / (Isp * g0)), with delta_v in m/s and Isp in s."""
     if not math.isfinite(delta_v_ms) or delta_v_ms < 0:
         raise ValueError("delta_v_ms must be a finite non-negative number")
     require_positive_finite("isp_s", isp_s)

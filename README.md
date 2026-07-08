@@ -7,13 +7,13 @@
 <td width="50%" align="center">
   <img src="moon-mission.gif" width="100%" alt="Moon mission plan — Starship lunar sequence: liftoff, orbital refueling, trans-lunar injection, lunar landing" />
 
-**Mission plan: Moon**
+<sub>Mission plan: Moon</sub>
 
 </td>
 <td width="50%" align="center">
   <img src="mars-mission.gif" width="100%" alt="Mars mission plan — Earth→Mars transfer: ascent, refueling, trans-Mars injection, cruise, Mars orbit insertion" />
 
-**Mission plan: Mars**
+<sub>Mission plan: Mars</sub>
 
 </td>
 </tr>
